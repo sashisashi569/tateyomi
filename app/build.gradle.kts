@@ -15,17 +15,25 @@ check(versionParts.size == 3) {
     "Invalid tateyomi.versionName '$appVersionName': expected a.b.c"
 }
 val (versionMajor, versionMinor, versionPatch) = versionParts
-check(versionMajor >= 1) {
-    "Invalid tateyomi.versionName '$appVersionName': a must be at least 1"
+check(versionMajor >= 0) {
+    "Invalid tateyomi.versionName '$appVersionName': a must be at least 0"
 }
-check(versionMinor in 0..20) {
-    "Invalid tateyomi.versionName '$appVersionName': b must be 0..20 (21 carries to a)"
+check(versionMinor in 0..999) {
+    "Invalid tateyomi.versionName '$appVersionName': b must be 0..999"
 }
-check(versionPatch in 0..20) {
-    "Invalid tateyomi.versionName '$appVersionName': c must be 0..20 (21 carries to b)"
+check(versionPatch in 0..999) {
+    "Invalid tateyomi.versionName '$appVersionName': c must be 0..999"
 }
-// b and c are base-21 digits, so the ordering stays correct across carries.
-val appVersionCode = versionMajor * 21 * 21 + versionMinor * 21 + versionPatch
+check(versionMajor > 0 || versionMinor == 0) {
+    "Invalid tateyomi.versionName '$appVersionName': development versions must be 0.0.x"
+}
+// b and c are 0..999 digits, so the ordering matches the version name.
+// The offset keeps 0.0.x development builds newer than earlier 1.5.x test builds.
+val appVersionCode =
+    2_000_000L + versionMajor.toLong() * 1_000_000 + versionMinor * 1_000L + versionPatch
+check(appVersionCode in 1..2_100_000_000L) {
+    "Invalid tateyomi.versionName '$appVersionName': versionCode $appVersionCode exceeds the Android limit"
+}
 
 android {
     namespace = "app.tateyomi"
@@ -35,7 +43,7 @@ android {
         applicationId = "app.tateyomi"
         minSdk = 26
         targetSdk = 35
-        versionCode = appVersionCode
+        versionCode = appVersionCode.toInt()
         versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

@@ -257,6 +257,8 @@ class AppRepository(private val context: Context) {
                 chapters = parsed.chapters,
                 toc = parsed.toc,
                 charCount = parsed.charCount,
+                coverImage = parsed.coverImageName,
+                version = BOOK_CONTENT_VERSION,
             )
             writeJson(File(dir, "content.json"), BookContent.serializer()) { content }
 
@@ -286,13 +288,22 @@ class AppRepository(private val context: Context) {
         val dir = bookDir(id)
         val file = File(dir, "content.json")
         val cached = readJson(file, BookContent.serializer())
-        if (cached != null) return@withContext cached
+        if (cached != null && cached.version >= BOOK_CONTENT_VERSION) return@withContext cached
 
-        // Recover from the original EPUB if the derived content was lost.
+        // Recover from the original EPUB if the derived content was lost or
+        // uses an older cache schema (inline gaiji, cover metadata, etc.).
         val source = File(dir, "source.epub")
-        if (!source.isFile) throw EpubException("この本のデータが見つかりません")
+        if (!source.isFile) {
+            return@withContext cached ?: throw EpubException("この本のデータが見つかりません")
+        }
         val parsed = withContext(Dispatchers.Default) { EpubParser.parse(source) }
-        val content = BookContent(parsed.chapters, parsed.toc, parsed.charCount)
+        val content = BookContent(
+            chapters = parsed.chapters,
+            toc = parsed.toc,
+            charCount = parsed.charCount,
+            coverImage = parsed.coverImageName,
+            version = BOOK_CONTENT_VERSION,
+        )
         writeJson(file, BookContent.serializer()) { content }
         content
     }

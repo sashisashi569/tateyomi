@@ -2,6 +2,7 @@ package app.tateyomi.ui.reader
 
 import android.graphics.Canvas
 import android.graphics.Paint
+import android.graphics.RectF
 import android.graphics.Typeface
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -21,6 +22,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -66,6 +69,7 @@ fun ReaderPageView(
             val chapter = book.content.chapters.getOrNull(ref.chapterIndex)
             ReaderTextPage(
                 chapterBlocks = chapter?.blocks.orEmpty(),
+                bookDir = book.bookDir,
                 content = content,
                 settings = settings,
                 fontSpec = fontSpec,
@@ -99,9 +103,11 @@ fun ReaderSpreadView(
     fontSpec: ReaderFontSpec,
     palette: ReaderPalette,
     modifier: Modifier = Modifier,
+    pageOffset: Int = 0,
 ) {
-    val first = SpreadLayout.startPage(spreadIndex, layout.totalPages)
-    val second = SpreadLayout.secondPage(spreadIndex, layout.totalPages)
+    val visibleTotal = (layout.totalPages - pageOffset).coerceAtLeast(1)
+    val first = SpreadLayout.startPage(spreadIndex, visibleTotal) + pageOffset
+    val second = SpreadLayout.secondPage(spreadIndex, visibleTotal)?.plus(pageOffset)
     val vertical = layout.settings.vertical
     Box(modifier.background(palette.background)) {
         val gapDp = layout.settings.spreadGapDp
@@ -161,6 +167,7 @@ private fun RowScope.SpreadSlot(
 @Composable
 private fun ReaderTextPage(
     chapterBlocks: List<app.tateyomi.data.Block>,
+    bookDir: File,
     content: PageContent.Text,
     settings: ReaderSettings,
     fontSpec: ReaderFontSpec,
@@ -170,6 +177,13 @@ private fun ReaderTextPage(
 ) {
     val density = LocalDensity.current
     val marginEm = settings.marginDp / MARGIN_BASE_DP
+    val inlineFiles = remember(chapterBlocks) {
+        chapterBlocks.filterIsInstance<TextBlock>()
+            .flatMap { it.inlineImages }
+            .map { it.file }
+            .distinct()
+    }
+    val inlineBitmaps = rememberInlineBitmaps(inlineFiles, bookDir)
     val paints = remember(
         fontSpec.file?.absolutePath,
         fontSpec.family,
@@ -232,6 +246,26 @@ private fun ReaderTextPage(
                 val lineLength = line.end - line.start
                 while (offset < lineLength) {
                     val textIndex = line.start + offset
+                    val inline = block.inlineImages.firstOrNull {
+                        textIndex >= it.start && textIndex < it.end
+                    }
+                    if (inline != null) {
+                        val bitmap = inlineBitmaps[inline.file]
+                        if (bitmap != null) {
+                            val cell = line.indent + offset
+                            drawInlineImage(
+                                canvas = native,
+                                bitmap = bitmap,
+                                cell = cell,
+                                vertical = settings.vertical,
+                                lineCenter = lineCenter,
+                                inlineStart = inlineStart,
+                                fontSize = fontSize,
+                            )
+                        }
+                        offset += (inline.end - inline.start).coerceAtLeast(1)
+                        continue
+                    }
                     val ch = block.text[textIndex]
                     val paint = if (!isHeading && isBold(block, textIndex)) {
                         paints.boldBody
@@ -457,6 +491,50 @@ private fun drawVerticalGlyph(canvas: Canvas, ch: Char, x: Float, y: Float, pain
 }
 
 
+@Composable
+private fun rememberInlineBitmaps(
+    files: List<String>,
+    bookDir: File,
+): Map<String, ImageBitmap?> {
+    val bitmaps = LinkedHashMap<String, ImageBitmap?>()
+    files.forEach { file ->
+        bitmaps[file] = rememberBitmap(File(bookDir, "images/$file"), 256)
+    }
+    return bitmaps
+}
+
+private fun drawInlineImage(
+    canvas: Canvas,
+    bitmap: ImageBitmap,
+    cell: Int,
+    vertical: Boolean,
+    lineCenter: Float,
+    inlineStart: Float,
+    fontSize: Float,
+) {
+    val bmp = bitmap.asAndroidBitmap()
+    val target = fontSize * 0.92f
+    val scale = min(
+        target / bmp.width.coerceAtLeast(1),
+        target / bmp.height.coerceAtLeast(1),
+    )
+    val width = bmp.width * scale
+    val height = bmp.height * scale
+    val centerX = if (vertical) lineCenter else inlineStart + fontSize * (cell + 0.5f)
+    val centerY = if (vertical) inlineStart + fontSize * (cell + 0.5f) else lineCenter
+    canvas.drawBitmap(
+        bmp,
+        null,
+        RectF(
+            centerX - width / 2f,
+            centerY - height / 2f,
+            centerX + width / 2f,
+            centerY + height / 2f,
+        ),
+        null,
+    )
+}
+
 private fun drawRuby(
     canvas: Canvas,
     block: TextBlock,
@@ -490,7 +568,10 @@ private fun drawRuby(
             .coerceIn(sliceStart + 1, fullReading.length)
         val reading = fullReading.substring(sliceStart, sliceEnd)
 
-        paint.textSize = fontSize * 0.36f
+        paint.textSize = fontSize * settings.rubyScale.coerceIn(
+            ReaderSettings.MIN_RUBY_SCALE,
+            ReaderSettings.MAX_RUBY_SCALE,
+        )
         val rubySize = paint.textSize
         // The ruby sits in the middle of the gap between two lines/columns.
         // With the default 1.5 line spacing this is 0.75em from the base
@@ -559,7 +640,7 @@ private class ReaderPaints(
         heading.textSize = size
         subheading.textSize = size * 0.94f
         caption.textSize = size * 0.82f
-        ruby.textSize = size * 0.40f
+        ruby.textSize = size * ReaderSettings.DEFAULT_RUBY_SCALE
         pageNumber.textSize = min(size * 0.55f, 18f)
     }
 

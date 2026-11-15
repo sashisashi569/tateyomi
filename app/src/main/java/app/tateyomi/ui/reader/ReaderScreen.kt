@@ -90,6 +90,7 @@ import app.tateyomi.data.usesSpread
 import app.tateyomi.data.ReadingProgress
 import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderLayout
+import app.tateyomi.reader.PageContent
 import app.tateyomi.reader.ReaderLayoutEngine
 import app.tateyomi.reader.SpreadLayout
 import app.tateyomi.reader.resolveFontSpec
@@ -172,7 +173,19 @@ private fun ReaderPager(
     val configuration = LocalConfiguration.current
     val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val spread = settings.usesSpread(landscape)
-    val pagerPageCount = if (spread) SpreadLayout.count(totalPages) else totalPages
+    val coverOffset = remember(layout, settings.skipCover, book.content.coverImage) {
+        val current = layout ?: return@remember 0
+        if (!settings.skipCover || current.totalPages <= 1) return@remember 0
+        val first = current.pageContent(0)
+        val coverImage = book.content.coverImage
+        val isCover = first is PageContent.Image && (
+            (coverImage != null && first.block.file == coverImage) ||
+                (coverImage == null && current.chapterAt(0).title == "表紙")
+            )
+        if (isCover) 1 else 0
+    }
+    val visiblePageCount = (totalPages - coverOffset).coerceAtLeast(1)
+    val pagerPageCount = if (spread) SpreadLayout.count(visiblePageCount) else visiblePageCount
     val scope = rememberCoroutineScope()
     var currentPage by remember { mutableIntStateOf(0) }
     var pagerStateRef by remember { mutableStateOf<PagerState?>(null) }
@@ -201,6 +214,7 @@ private fun ReaderPager(
     LaunchedEffect(layout) {
         if (layout != null) {
             currentPage = layout.pageFor(location)
+                .coerceAtLeast(coverOffset)
                 .coerceIn(0, (layout.totalPages - 1).coerceAtLeast(0))
         }
     }
@@ -291,34 +305,39 @@ private fun ReaderPager(
                         CircularProgressIndicator(color = chromePalette.accent, strokeWidth = 2.dp)
                     }
                 } else {
-                    key(currentLayout, spread) {
-                        val initialPage = currentLayout.pageFor(location).let { page ->
-                            if (spread) SpreadLayout.indexOfPage(page) else page
-                        }.coerceIn(0, (pagerPageCount - 1).coerceAtLeast(0))
+                    key(currentLayout, spread, coverOffset) {
+                        val initialPage = (currentLayout.pageFor(location) - coverOffset)
+                            .coerceAtLeast(0)
+                            .let { page ->
+                                if (spread) SpreadLayout.indexOfPage(page) else page
+                            }
+                            .coerceIn(0, (pagerPageCount - 1).coerceAtLeast(0))
                         val pagerState = rememberPagerState(initialPage = initialPage) {
                             pagerPageCount
                         }
                         var lastSettledPagerPage by remember(pagerState) { mutableIntStateOf(-1) }
-                        LaunchedEffect(pagerState, spread) {
+                        LaunchedEffect(pagerState, spread, coverOffset) {
                             pagerStateRef = pagerState
                             snapshotFlow { pagerState.settledPage }
                                 .distinctUntilChanged()
                                 .collect { pagerPage ->
-                                    val first = if (spread) {
-                                        SpreadLayout.startPage(pagerPage, currentLayout.totalPages)
+                                    val firstVisible = if (spread) {
+                                        SpreadLayout.startPage(pagerPage, visiblePageCount)
                                     } else {
                                         pagerPage
                                     }
-                                    val last = if (spread) {
-                                        min(first + 1, currentLayout.totalPages - 1)
+                                    val lastVisible = if (spread) {
+                                        min(firstVisible + 1, visiblePageCount - 1)
                                     } else {
-                                        first
+                                        firstVisible
                                     }
+                                    val first = firstVisible + coverOffset
+                                    val last = lastVisible + coverOffset
                                     val advanced = if (
                                         lastSettledPagerPage >= 0 &&
                                         pagerPage == lastSettledPagerPage + 1
                                     ) {
-                                        last - first + 1
+                                        lastVisible - firstVisible + 1
                                     } else {
                                         0
                                     }
@@ -348,6 +367,7 @@ private fun ReaderPager(
                                     book = book,
                                     layout = currentLayout,
                                     spreadIndex = pagerPage,
+                                    pageOffset = coverOffset,
                                     fontSpec = fontSpec,
                                     palette = pagePalette,
                                     modifier = Modifier.fillMaxSize(),
@@ -356,7 +376,7 @@ private fun ReaderPager(
                                 ReaderPageView(
                                     book = book,
                                     layout = currentLayout,
-                                    page = pagerPage,
+                                    page = pagerPage + coverOffset,
                                     fontSpec = fontSpec,
                                     palette = pagePalette,
                                     modifier = Modifier.fillMaxSize(),
@@ -370,12 +390,18 @@ private fun ReaderPager(
         }
 
         val safePage = currentPage.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
-        val sliderCount = if (spread) SpreadLayout.count(totalPages) else totalPages
-        val sliderIndex = if (spread) SpreadLayout.indexOfPage(safePage) else safePage
-        val pageLabel = if (spread && visibleEndPage > safePage) {
-            "${safePage + 1}-${visibleEndPage + 1}"
+        val safeVisiblePage = (safePage - coverOffset).coerceAtLeast(0)
+        val visibleEnd = (visibleEndPage - coverOffset).coerceAtLeast(0)
+        val sliderCount = if (spread) SpreadLayout.count(visiblePageCount) else visiblePageCount
+        val sliderIndex = if (spread) {
+            SpreadLayout.indexOfPage(safeVisiblePage)
         } else {
-            "${safePage + 1}"
+            safeVisiblePage
+        }
+        val pageLabel = if (spread && visibleEnd > safeVisiblePage) {
+            "${safeVisiblePage + 1}-${visibleEnd + 1}"
+        } else {
+            "${safeVisiblePage + 1}"
         }
         AnimatedVisibility(
             visible = bottomBarVisible,
@@ -389,7 +415,7 @@ private fun ReaderPager(
                 sliderIndex = sliderIndex,
                 sliderCount = sliderCount,
                 pageLabel = pageLabel,
-                totalPages = totalPages,
+                totalPages = visiblePageCount,
                 atEnd = visibleEndPage >= totalPages - 1,
                 palette = chromePalette,
                 onUserInteraction = { bottomBarInteraction++ },
@@ -425,9 +451,11 @@ private fun ReaderPager(
                 onDismiss = { showToc = false },
                 onSelectEntry = { entry ->
                     showToc = false
-                    val target = currentLayout.pageForToc(entry).let { page ->
-                        if (spread) SpreadLayout.indexOfPage(page) else page
-                    }
+                    val target = (currentLayout.pageForToc(entry) - coverOffset)
+                        .coerceAtLeast(0)
+                        .let { page ->
+                            if (spread) SpreadLayout.indexOfPage(page) else page
+                        }
                     pagerStateRef?.let { pagerState ->
                         scope.launch {
                             pagerState.scrollToPage(target.coerceIn(0, (pagerPageCount - 1).coerceAtLeast(0)))

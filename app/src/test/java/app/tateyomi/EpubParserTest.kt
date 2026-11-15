@@ -117,7 +117,10 @@ class EpubParserTest {
         assertTrue(firstChapterText.any { it.style == BlockStyle.HEADING && it.text == "第一話" })
         assertTrue(firstChapterText.any { block -> block.ruby.any { it.text == "かんじ" } })
         assertTrue(firstChapterText.any { block -> block.bold.isNotEmpty() })
-        assertTrue(parsed.chapters[0].blocks.any { it is ImageBlock })
+        assertTrue(
+            parsed.chapters[0].blocks.filterIsInstance<TextBlock>()
+                .any { it.inlineImages.isNotEmpty() },
+        )
         assertEquals(1, parsed.images.size)
         assertTrue(parsed.chapters.none { it.charCount == 0 && it.blocks.isEmpty() })
         assertNotNull(parsed.coverBytes)
@@ -169,6 +172,49 @@ class EpubParserTest {
         assertEquals(1, parsed.images.size)
         assertNotNull(parsed.coverBytes)
         assertEquals(0, parsed.charCount)
+    }
+
+    @Test
+    fun keepsInlineGaijiImagesInsideTheTextBlock() {
+        val epub = writeEpub(
+            mapOf(
+                "mimetype" to "application/epub+zip",
+                "META-INF/container.xml" to """
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles>
+                        <rootfile full-path="OPS/content.opf" media-type="application/oebps-package+xml"/>
+                      </rootfiles>
+                    </container>
+                """.trimIndent(),
+                "OPS/content.opf" to """
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>外字テスト</dc:title>
+                      </metadata>
+                      <manifest>
+                        <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="gaiji" href="images/gaiji.png" media-type="image/png"/>
+                      </manifest>
+                      <spine><itemref idref="text"/></spine>
+                    </package>
+                """.trimIndent(),
+                "OPS/text.xhtml" to """
+                    <html><body>
+                      <p>前<img class="gaiji" src="images/gaiji.png" alt="引用符"/>後</p>
+                    </body></html>
+                """.trimIndent(),
+                "OPS/images/gaiji.png" to pixelPng,
+            ),
+        )
+
+        val parsed = EpubParser.parse(epub)
+        assertEquals(1, parsed.chapters.size)
+        val block = parsed.chapters[0].blocks.filterIsInstance<TextBlock>().single()
+        assertEquals("前\uFFFC後", block.text)
+        assertEquals(1, block.inlineImages.size)
+        assertEquals("引用符", block.inlineImages[0].alt)
+        assertTrue(parsed.chapters[0].blocks.none { it is ImageBlock })
+        assertEquals(1, parsed.images.size)
     }
 
     @Test

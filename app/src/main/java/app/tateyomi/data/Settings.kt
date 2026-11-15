@@ -60,6 +60,8 @@ data class ReaderSettings(
     val theme: ReaderTheme = ReaderTheme.PAPER,
     val spread: SpreadMode = SpreadMode.AUTO,
     val spreadGapDp: Int = 0,
+    val skipCover: Boolean = true,
+    val rubyScale: Float = 0.5f,
 ) {
     fun normalized(): ReaderSettings = copy(
         charsPerLine = charsPerLine.coerceIn(MIN_CHARS, MAX_CHARS),
@@ -69,6 +71,8 @@ data class ReaderSettings(
         indent = indent.coerceIn(0, 3),
         marginDp = marginDp.coerceIn(MIN_MARGIN, MAX_MARGIN),
         spreadGapDp = spreadGapDp.coerceIn(MIN_SPREAD_GAP, MAX_SPREAD_GAP),
+        rubyScale = ((rubyScale * 100f).roundToInt() / 100f)
+            .coerceIn(MIN_RUBY_SCALE, MAX_RUBY_SCALE),
     )
 
     companion object {
@@ -82,6 +86,9 @@ data class ReaderSettings(
         const val MAX_MARGIN = 168
         const val MIN_SPREAD_GAP = -64
         const val MAX_SPREAD_GAP = 64
+        const val MIN_RUBY_SCALE = 0.3f
+        const val MAX_RUBY_SCALE = 0.8f
+        const val DEFAULT_RUBY_SCALE = 0.5f
 
         val Default = ReaderSettings()
 

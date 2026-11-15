@@ -72,6 +72,7 @@ data class ParsedEpub(
     val charCount: Int,
     val coverBytes: ByteArray? = null,
     val coverExtension: String? = null,
+    val coverImageName: String? = null,
     val images: Map<String, ByteArray> = emptyMap(),
 )
 
@@ -225,6 +226,9 @@ object EpubParser {
         val charCount = chapters.sumOf { it.charCount }
         val cover = findCover(zip, opf, manifest, opfPath)
             ?: if (fixedLayout) firstSpineImageCover(zip, spine) else null
+        val coverImageName = cover?.let { (bytes, extension) ->
+            "${digest(bytes)}.$extension"
+        }
 
         return ParsedEpub(
             title = title,
@@ -235,6 +239,7 @@ object EpubParser {
             charCount = charCount,
             coverBytes = cover?.first,
             coverExtension = cover?.second,
+            coverImageName = coverImageName,
             images = images,
         )
     }
@@ -549,12 +554,14 @@ object EpubParser {
         val text: String,
         val ruby: List<RubySpan>,
         val bold: List<StyleRange>,
+        val inlineImages: List<InlineImageSpan>,
     )
 
     private class InlineBuilder {
         private val text = StringBuilder()
         private val ruby = mutableListOf<RubySpan>()
         private val bold = mutableListOf<StyleRange>()
+        private val inlineImages = mutableListOf<InlineImageSpan>()
 
         fun isEmpty(): Boolean = text.isEmpty()
 
@@ -586,6 +593,12 @@ object EpubParser {
         }
 
         fun startRuby(): Int = text.length
+
+        fun appendInlineImage(file: String, alt: String) {
+            val start = text.length
+            text.append('\uFFFC')
+            inlineImages += InlineImageSpan(start, text.length, file, alt)
+        }
 
         fun endRuby(start: Int, reading: String, boldText: Boolean) {
             val end = text.length
@@ -620,7 +633,12 @@ object EpubParser {
                 val e = minOf(range.end, end)
                 if (e <= s) null else StyleRange(s - start, e - start)
             }
-            return BuiltText(value, shiftedRuby, shiftedBold)
+            val shiftedInlineImages = inlineImages.mapNotNull { span ->
+                val s = maxOf(span.start, start)
+                val e = minOf(span.end, end)
+                if (e <= s) null else span.copy(start = s - start, end = e - start)
+            }
+            return BuiltText(value, shiftedRuby, shiftedBold, shiftedInlineImages)
         }
 
         private fun Char.isBodyTrimChar(): Boolean =
@@ -716,8 +734,12 @@ object EpubParser {
                     continuation = true
                 }
                 "img" -> {
-                    flush(inheritedStyle, indent, centered, anchor)
-                    addImage(element, blockAnchor)
+                    if (isInlineImage(element)) {
+                        addInlineImage(element)
+                    } else {
+                        flush(inheritedStyle, indent, centered, anchor)
+                        addImage(element, blockAnchor)
+                    }
                 }
                 "image" -> {
                     flush(inheritedStyle, indent, centered, anchor)
@@ -872,49 +894,68 @@ object EpubParser {
                 centered = centered,
                 ruby = built.ruby,
                 bold = built.bold,
+                inlineImages = built.inlineImages,
                 anchor = anchor,
             )
             charCount += built.text.length
             continuation = false
         }
 
+        private fun isInlineImage(element: Element): Boolean {
+            if (element.hasClass("gaiji")) return true
+            val parent = element.parent()?.localName()
+            return parent in setOf(
+                "p", "a", "span", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+                "blockquote", "figcaption", "td", "th",
+            )
+        }
+
         private fun addImage(element: Element, anchor: String?) {
-            if (imageByteBudget() > MAX_TOTAL_IMAGE_BYTES) return
+            val image = loadImage(element) ?: return
+            blocks += ImageBlock(image.name, alt = image.alt, anchor = anchor)
+        }
+
+        private fun addInlineImage(element: Element) {
+            val image = loadImage(element) ?: return
+            buffer.appendInlineImage(image.name, image.alt)
+        }
+
+        private data class LoadedImage(val name: String, val alt: String)
+
+        private fun loadImage(element: Element): LoadedImage? {
+            if (imageByteBudget() > MAX_TOTAL_IMAGE_BYTES) return null
             val alt = element.attr("alt")
             val src = element.attr("src")
                 .ifBlank { element.attr("xlink:href") }
                 .ifBlank { element.attr("href") }
                 .ifBlank { element.attr("data-src") }
-            if (src.isBlank()) return
+            if (src.isBlank()) return null
 
             val bytes: ByteArray
             val extension: String
             val cacheKey: String
             if (src.startsWith("data:", ignoreCase = true)) {
                 val comma = src.indexOf(',')
-                if (comma < 0) return
+                if (comma < 0) return null
                 val meta = src.substring(0, comma)
-                if (!meta.contains("base64", true)) return
+                if (!meta.contains("base64", true)) return null
                 bytes = try {
                     Base64.getDecoder().decode(src.substring(comma + 1))
                 } catch (_: Exception) {
-                    return
+                    return null
                 }
-                extension = sniffImage(bytes) ?: return
+                extension = sniffImage(bytes) ?: return null
                 cacheKey = "data:${digest(bytes)}"
             } else {
-                val path = resolvePath(chapterPath, src) ?: return
+                val path = resolvePath(chapterPath, src) ?: return null
                 val existing = imageNames[path]
-                if (existing != null) {
-                    blocks += ImageBlock(existing, alt = alt, anchor = anchor)
-                    return
-                }
+                if (existing != null) return LoadedImage(existing, alt)
                 bytes = try {
                     readEntry(zip, path, MAX_IMAGE_BYTES)
                 } catch (_: Exception) {
                     null
-                } ?: return
-                extension = imageExtension(path, bytes) ?: return
+                } ?: return null
+                extension = imageExtension(path, bytes) ?: return null
                 cacheKey = path
             }
 
@@ -927,7 +968,7 @@ object EpubParser {
                 images[name] = bytes
                 onImageBytes(bytes.size.toLong())
             }
-            blocks += ImageBlock(name, alt = alt, anchor = anchor)
+            return LoadedImage(name, alt)
         }
     }
 }

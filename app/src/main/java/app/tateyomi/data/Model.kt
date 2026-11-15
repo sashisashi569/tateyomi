@@ -28,11 +28,17 @@ data class BookSummary(
         get() = ((progress?.overallFraction ?: 0f) * 100f).toInt().coerceIn(0, 100)
 }
 
+const val BOOK_CONTENT_VERSION = 2
+
 @Serializable
 data class BookContent(
     val chapters: List<Chapter> = emptyList(),
     val toc: List<TocEntry> = emptyList(),
     val charCount: Int = 0,
+    /** Image file name used as the book cover, when it also appears in the spine. */
+    val coverImage: String? = null,
+    /** Cache schema version; older caches are re-parsed from source.epub. */
+    val version: Int = 1,
 )
 
 @Serializable
@@ -62,6 +68,7 @@ data class TextBlock(
     val centered: Boolean = false,
     val ruby: List<RubySpan> = emptyList(),
     val bold: List<StyleRange> = emptyList(),
+    val inlineImages: List<InlineImageSpan> = emptyList(),
     val anchor: String? = null,
 ) : Block
 
@@ -86,6 +93,15 @@ data class RubySpan(
 data class StyleRange(
     val start: Int,
     val end: Int,
+)
+
+/** A small inline image (gaiji) occupying one character cell in [TextBlock.text]. */
+@Serializable
+data class InlineImageSpan(
+    val start: Int,
+    val end: Int,
+    val file: String,
+    val alt: String = "",
 )
 
 @Serializable

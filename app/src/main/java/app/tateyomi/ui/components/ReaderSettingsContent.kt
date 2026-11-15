@@ -37,6 +37,7 @@ import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -210,6 +211,24 @@ fun ReaderSettingsContent(
             fontSize = 10.sp,
             color = palette.muted,
         )
+        Spacer(Modifier.height(8.dp))
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("表紙ページをスキップ", fontSize = 14.sp, color = palette.text)
+                Text(
+                    text = "先頭の表紙画像を読み飛ばします。",
+                    fontSize = 10.sp,
+                    color = palette.muted,
+                )
+            }
+            Switch(
+                checked = settings.skipCover,
+                onCheckedChange = { onChange(settings.copy(skipCover = it)) },
+            )
+        }
 
         Spacer(Modifier.height(18.dp))
         SectionLabel("組式", palette)
@@ -255,6 +274,19 @@ fun ReaderSettingsContent(
         )
         Text(
             text = "余白は文字サイズに比例して描画されます。",
+            fontSize = 10.sp,
+            color = palette.muted,
+        )
+        SettingSliderFloat(
+            label = "ルビサイズ",
+            value = settings.rubyScale,
+            range = ReaderSettings.MIN_RUBY_SCALE..ReaderSettings.MAX_RUBY_SCALE,
+            display = { "%.2f字".format(it) },
+            palette = palette,
+            onChange = { onChange(settings.copy(rubyScale = it)) },
+        )
+        Text(
+            text = "ルビ2文字で本文1文字くらいが目安です。",
             fontSize = 10.sp,
             color = palette.muted,
         )

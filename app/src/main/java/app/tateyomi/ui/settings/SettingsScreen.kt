@@ -662,6 +662,7 @@ private fun AppInfoPage() {
             InfoRow("組方向", "縦書き / 横書き")
             InfoRow("フォント", "端末フォント + 追加フォント")
             InfoRow("保存先", "アプリ専用領域")
+            InfoRow("ライセンス", "AGPL-3.0")
         }
 
         InfoSection(title = "プライバシー") {
@@ -676,7 +677,7 @@ private fun AppInfoPage() {
 
         InfoSection(title = "オープンソース") {
             Text(
-                text = "Kotlin / Jetpack Compose / kotlinx.serialization / Jsoup",
+                text = "アプリ本体: AGPL-3.0\nKotlin / Jetpack Compose / kotlinx.serialization / Jsoup",
                 fontSize = 12.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
