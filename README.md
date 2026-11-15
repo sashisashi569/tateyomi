@@ -85,9 +85,10 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - リーダーの「表示」シートと設定画面の「表示設定」は同じ編集画面を共有
   - **フォントマネージャー**：フォント一覧、TTF / OTF / TTC の追加・削除
   - **アプリ情報**：バージョン、対応形式、プライバシー、オープンソース
-  - **バックアップ**：プリセットと読書統計を1つのJSONに書き出し／読み込み
+  - **バックアップ**：プリセット・読書進捗・読書統計を1つのJSONに書き出し／読み込み
     - 各カスタムプリセットの共有ボタンから、プリセット単体のJSONも書き出し可能
     - 読み込み時、プリセットは同名を上書き、統計は現在値と合算
+    - 読書進捗は書籍ID、またはタイトル・著者で照合し、更新日時が新しい方を採用
     - 同名プリセットの保存時は上書き確認を表示し、重複保存を防止
 - **フォント**
   - 端末の明朝（serif） / ゴシック（sans-serif） / 等幅（monospace）
@@ -135,7 +136,7 @@ gradle assembleRelease      # 署名なし release APK（R8 有効）
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.5-debugsigned.apk`
+ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.6-debugsigned.apk`
 に生成しています（ローカルの debug keystore で署名したテスト用。ストア配布用
 ではありません）。APK などのビルド成果物は Git 管理外です。
 この APK に EPUB は同梱されていません。本棚の「EPUBを追加」から取り込んでください。
@@ -224,7 +225,7 @@ gradle testDebugUnitTest
 - `FontMetadataTest`：フォントでないファイルの書体名解析
 - `AppearanceTest`：カラーテーマ／AMOLED の既定値・保存形式・旧設定との互換
 - `SpreadTest`：自動／単ページ／見開きの判定、ページペアと端数ページ
-- `BackupTest`：プリセットの同名マージ、統計の単調マージ、JSON往復
+- `BackupTest`：プリセットの同名マージ、読書進捗の照合・新しい方の採用、統計の単調マージ、JSON往復
 - `SettingsTest`：余白範囲・ルビサイズ係数・表紙スキップ既定値の正規化
 - `EpubParserTest`：合成 EPUB（ルビ、画像、SVG挿絵、外字インライン画像、名前空間付き OPF、固定レイアウト画像 spine）
 - `FormattingTest`：時間・文字数・連続読書日数

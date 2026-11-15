@@ -120,6 +120,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                     )
                     is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
                         settings = settings,
+                        books = library,
                         stats = stats,
                         fontBusy = fontBusy,
                         backupBusy = backupBusy,

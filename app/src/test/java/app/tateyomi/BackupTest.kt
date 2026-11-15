@@ -1,11 +1,15 @@
 package app.tateyomi
 
+import app.tateyomi.data.BackupBookProgress
 import app.tateyomi.data.BackupFile
 import app.tateyomi.data.BackupJson
 import app.tateyomi.data.BookStats
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
+import app.tateyomi.data.ReadingProgress
 import app.tateyomi.data.ReadingStats
+import app.tateyomi.data.findBackupProgress
+import app.tateyomi.data.mergeBookProgress
 import app.tateyomi.data.mergePresetsByName
 import app.tateyomi.data.mergeReadingStats
 import org.junit.Assert.assertEquals
@@ -80,11 +84,61 @@ class BackupTest {
     }
 
     @Test
+    fun newerReadingProgressWins() {
+        val older = ReadingProgress(chapterIndex = 2, overallFraction = 0.2f, updatedAt = 10)
+        val newer = ReadingProgress(chapterIndex = 5, overallFraction = 0.5f, updatedAt = 20)
+
+        assertEquals(newer, mergeBookProgress(older, newer))
+        assertEquals(newer, mergeBookProgress(newer, older))
+        assertEquals(older, mergeBookProgress(older, null))
+        assertEquals(newer, mergeBookProgress(null, newer))
+        assertEquals(null, mergeBookProgress(null, null))
+    }
+
+    @Test
+    fun backupProgressMatchesByIdThenTitleAndAuthor() {
+        val book = app.tateyomi.data.BookSummary(
+            id = "book-1",
+            title = "創約　とある魔術の禁書目録（４）",
+            author = "鎌池和馬",
+        )
+        val byId = BackupBookProgress(
+            bookId = "book-1",
+            title = "別名",
+            progress = ReadingProgress(overallFraction = 0.3f),
+        )
+        val byName = BackupBookProgress(
+            bookId = "other-id",
+            title = "創約 とある魔術の禁書目録（４）",
+            author = "鎌池和馬",
+            progress = ReadingProgress(overallFraction = 0.4f),
+        )
+
+        assertEquals(byId, findBackupProgress(book, listOf(byName, byId)))
+        assertEquals(byName, findBackupProgress(book, listOf(byName)))
+    }
+
+    @Test
     fun backupJsonRoundTrips() {
         val backup = BackupFile(
             exportedAt = 123L,
             presets = listOf(
                 ReaderPreset("p1", "通勤", ReaderSettings(charsPerLine = 36)),
+            ),
+            books = listOf(
+                BackupBookProgress(
+                    bookId = "book-1",
+                    title = "本",
+                    author = "著者",
+                    charCount = 1000,
+                    lastOpenedAt = 99,
+                    progress = ReadingProgress(
+                        chapterIndex = 3,
+                        chapterFraction = 0.25f,
+                        overallFraction = 0.4f,
+                        updatedAt = 99,
+                    ),
+                ),
             ),
             stats = ReadingStats(totalSeconds = 42),
         )

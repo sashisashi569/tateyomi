@@ -9,6 +9,7 @@ import app.tateyomi.TateyomiApp
 import app.tateyomi.data.AppRepository
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.AppearanceSettings
+import app.tateyomi.data.BACKUP_VERSION
 import app.tateyomi.data.BackupFile
 import app.tateyomi.data.BackupJson
 import app.tateyomi.data.BookContent
@@ -217,6 +218,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _backupBusy.value = true
             try {
                 val backup = BackupFile(
+                    version = BACKUP_VERSION,
                     exportedAt = System.currentTimeMillis(),
                     presets = listOf(preset),
                     stats = ReadingStats(),
@@ -255,7 +257,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val backup = BackupJson.decodeFromString(BackupFile.serializer(), text)
                 val result = withContext(Dispatchers.IO) { repository.importBackup(backup) }
                 _messages.tryEmit(
-                    "プリセット${result.presetCount}件・統計${result.statsBookCount}冊を読み込みました",
+                    "プリセット${result.presetCount}件・" +
+                        "読書進捗${result.progressBookCount}冊・" +
+                        "統計${result.statsBookCount}冊を読み込みました",
                 )
             } catch (e: Exception) {
                 _messages.tryEmit(e.message ?: "バックアップを読み込めませんでした")

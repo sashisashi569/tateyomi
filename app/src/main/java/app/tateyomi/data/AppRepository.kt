@@ -371,8 +371,21 @@ class AppRepository(private val context: Context) {
     }
 
     fun createBackup(): BackupFile = BackupFile(
+        version = BACKUP_VERSION,
         exportedAt = System.currentTimeMillis(),
         presets = _settings.value.presets,
+        books = _library.value.mapNotNull { book ->
+            book.progress?.let { progress ->
+                BackupBookProgress(
+                    bookId = book.id,
+                    title = book.title,
+                    author = book.author,
+                    charCount = book.charCount,
+                    lastOpenedAt = book.lastOpenedAt,
+                    progress = progress,
+                )
+            }
+        },
         stats = _stats.value,
     )
 
@@ -380,16 +393,34 @@ class AppRepository(private val context: Context) {
         if (backup.format.isNotBlank() && backup.format != "tateyomi-backup") {
             throw EpubException("縦読みのバックアップファイルではありません")
         }
-        if (backup.version > 1) {
+        if (backup.version > BACKUP_VERSION) {
             throw EpubException("このバックアップは新しい形式のため読み込めません")
         }
         val mergedPresets = mergePresetsByName(_settings.value.presets, backup.presets)
         _settings.update { it.copy(presets = mergedPresets) }
         persistSettings()
+
+        var progressBookCount = 0
+        _library.update { books ->
+            sortBooks(books.map { book ->
+                val entry = findBackupProgress(book, backup.books) ?: return@map book
+                val merged = mergeBookProgress(book.progress, entry.progress)
+                val importedLast = entry.lastOpenedAt ?: entry.progress?.updatedAt ?: 0L
+                val lastOpenedAt = maxOf(book.lastOpenedAt ?: 0L, importedLast)
+                    .takeIf { it > 0L }
+                if (merged != book.progress || lastOpenedAt != book.lastOpenedAt) {
+                    progressBookCount++
+                }
+                book.copy(progress = merged, lastOpenedAt = lastOpenedAt)
+            })
+        }
+        if (progressBookCount > 0) persistLibrary()
+
         _stats.value = mergeReadingStats(_stats.value, backup.stats)
         persistStats()
         return BackupImportResult(
             presetCount = backup.presets.size,
+            progressBookCount = progressBookCount,
             statsBookCount = backup.stats.books.size,
         )
     }

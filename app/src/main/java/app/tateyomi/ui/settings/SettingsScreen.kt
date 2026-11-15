@@ -72,6 +72,7 @@ import androidx.activity.compose.BackHandler
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.AppThemeMode
 import app.tateyomi.data.AppearanceSettings
+import app.tateyomi.data.BookSummary
 import app.tateyomi.data.BuiltInFonts
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
@@ -95,6 +96,7 @@ private const val PAGE_BACKUP = 4
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    books: List<BookSummary>,
     stats: ReadingStats,
     fontBusy: Boolean,
     backupBusy: Boolean,
@@ -154,6 +156,7 @@ fun SettingsScreen(
             PAGE_ABOUT -> AppInfoPage()
             PAGE_BACKUP -> BackupPage(
                 settings = settings,
+                books = books,
                 stats = stats,
                 busy = backupBusy,
                 onExport = onExportBackup,
@@ -615,6 +618,7 @@ private fun FontManagerPage(
 @Composable
 private fun BackupPage(
     settings: AppSettings,
+    books: List<BookSummary>,
     stats: ReadingStats,
     busy: Boolean,
     onExport: (Uri) -> Unit,
@@ -658,6 +662,7 @@ private fun BackupPage(
                 Text("書き出す", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
                     text = "プリセット ${settings.presets.size}件 / " +
+                        "読書進捗 ${books.count { it.progress != null }}冊 / " +
                         "読書統計 ${stats.books.size}冊・${stats.dailySeconds.size}日分",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -690,7 +695,8 @@ private fun BackupPage(
             Column(Modifier.padding(16.dp)) {
                 Text("読み込む", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
-                    text = "プリセットは同名のものを上書きして追加します。" +
+                    text = "プリセットは同名を上書き、読書進捗は書籍IDまたは" +
+                        "タイトル・著者で照合して新しい方を採用します。" +
                         "読書統計は現在の値と合算します。",
                     fontSize = 11.sp,
                     lineHeight = 17.sp,
@@ -724,7 +730,8 @@ private fun BackupPage(
         }
 
         Text(
-            text = "本文データ・フォントファイル・本棚はバックアップに含まれません。",
+            text = "本文データ・フォントファイルはバックアップに含まれません。" +
+                "読書進捗は本棚にある書籍にのみ復元されます。",
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 18.dp, bottom = 24.dp),
@@ -737,7 +744,8 @@ private fun BackupPage(
             title = { Text("バックアップを読み込む", fontFamily = FontFamily.Serif) },
             text = {
                 Text(
-                    "プリセットは同名のものを上書きし、読書統計は現在の値と合算します。",
+                    "プリセットは同名を上書き、読書進捗はより新しいものを採用し、" +
+                        "読書統計は現在の値と合算します。",
                     fontSize = 14.sp,
                 )
             },
