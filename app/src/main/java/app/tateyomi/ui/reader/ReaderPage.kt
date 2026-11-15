@@ -32,6 +32,7 @@ import app.tateyomi.reader.PageContent
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.reader.ReaderTypefaces
 import app.tateyomi.reader.computeReaderMetrics
+import app.tateyomi.reader.needsManualVerticalRotation
 import app.tateyomi.ui.LoadedBook
 import app.tateyomi.ui.components.rememberBitmap
 import app.tateyomi.ui.theme.ReaderPalette
@@ -330,7 +331,16 @@ private fun drawHorizontalRun(
 
 private fun drawVerticalGlyph(canvas: Canvas, ch: Char, x: Float, y: Float, paint: Paint) {
     val metrics = paint.fontMetrics
-    if (ch.code in 0x21..0x7E) {
+    val manualRotation = needsManualVerticalRotation(ch)
+    if (manualRotation || ch.code in 0x21..0x7E) {
+        val oldFeatures = paint.fontFeatureSettings
+        if (manualRotation) {
+            // System fonts do not always expose a `vert` alternate for these
+            // symbols (especially when the glyph comes from a Latin fallback).
+            // Draw the horizontal form with the feature disabled, then rotate
+            // it so ellipses and dashes run down the column correctly.
+            paint.fontFeatureSettings = null
+        }
         // Half-width Latin runs are rotated clockwise in Japanese vertical text.
         canvas.save()
         canvas.translate(x, y)
@@ -338,11 +348,13 @@ private fun drawVerticalGlyph(canvas: Canvas, ch: Char, x: Float, y: Float, pain
         val baseline = -(metrics.ascent + metrics.descent) / 2f
         canvas.drawText(ch.toString(), 0f, baseline, paint)
         canvas.restore()
+        if (manualRotation) paint.fontFeatureSettings = oldFeatures
     } else {
         val baseline = y - (metrics.ascent + metrics.descent) / 2f
         canvas.drawText(ch.toString(), x, baseline, paint)
     }
 }
+
 
 private fun drawRuby(
     canvas: Canvas,
