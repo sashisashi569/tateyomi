@@ -26,7 +26,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -50,7 +49,6 @@ import app.tateyomi.data.ReaderSettings
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.ui.components.ReaderSettingsContent
 import app.tateyomi.ui.theme.ReaderPalette
-import app.tateyomi.ui.theme.readerColorScheme
 import java.io.File
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -82,93 +80,91 @@ fun TocSheet(
         scrimColor = Color.Black.copy(alpha = 0.45f),
         dragHandle = { BottomSheetDefaults.DragHandle(color = palette.rule) },
     ) {
-        MaterialTheme(colorScheme = readerColorScheme(palette)) {
-            Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = "目次",
-                        fontFamily = FontFamily.Serif,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 20.sp,
-                    )
-                    Spacer(Modifier.width(10.dp))
-                    Text(
-                        text = "${entries.size}項目",
-                        fontSize = 12.sp,
-                        color = palette.muted,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Outlined.Close, contentDescription = "閉じる", tint = palette.muted)
-                    }
+        Column(Modifier.fillMaxWidth().navigationBarsPadding()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "目次",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 20.sp,
+                )
+                Spacer(Modifier.width(10.dp))
+                Text(
+                    text = "${entries.size}項目",
+                    fontSize = 12.sp,
+                    color = palette.muted,
+                )
+                Spacer(Modifier.weight(1f))
+                IconButton(onClick = onDismiss) {
+                    Icon(Icons.Outlined.Close, contentDescription = "閉じる", tint = palette.muted)
                 }
-                HorizontalDivider(color = palette.rule)
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 560.dp),
-                ) {
-                    itemsIndexed(
-                        entries,
-                        key = { _, entry -> "${entry.chapterIndex}:${entry.blockIndex}:${entry.title}" },
-                    ) { index, entry ->
-                        val selected = index == activeIndex
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .background(if (selected) palette.accent.copy(alpha = 0.08f) else Color.Transparent)
-                                .clickable { onSelectEntry(entry) }
-                                .padding(
-                                    start = 14.dp + (entry.level.coerceAtMost(3) * 16).dp,
-                                    end = 16.dp,
-                                    top = 12.dp,
-                                    bottom = 12.dp,
+            }
+            HorizontalDivider(color = palette.rule)
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 560.dp),
+            ) {
+                itemsIndexed(
+                    entries,
+                    key = { _, entry -> "${entry.chapterIndex}:${entry.blockIndex}:${entry.title}" },
+                ) { index, entry ->
+                    val selected = index == activeIndex
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(if (selected) palette.accent.copy(alpha = 0.08f) else Color.Transparent)
+                            .clickable { onSelectEntry(entry) }
+                            .padding(
+                                start = 14.dp + (entry.level.coerceAtMost(3) * 16).dp,
+                                end = 16.dp,
+                                top = 12.dp,
+                                bottom = 12.dp,
+                            ),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(
+                            Modifier
+                                .width(3.dp)
+                                .height(26.dp)
+                                .background(
+                                    if (selected) palette.accent else Color.Transparent,
+                                    CircleShape,
                                 ),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Box(
-                                Modifier
-                                    .width(3.dp)
-                                    .height(26.dp)
-                                    .background(
-                                        if (selected) palette.accent else Color.Transparent,
-                                        CircleShape,
-                                    ),
-                            )
-                            Spacer(Modifier.width(12.dp))
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Text(
+                            text = (index + 1).toString().padStart(2, '0'),
+                            fontSize = 11.sp,
+                            fontFamily = FontFamily.Monospace,
+                            color = if (selected) palette.accent else palette.muted,
+                            modifier = Modifier.width(28.dp),
+                        )
+                        Text(
+                            text = entry.title.ifBlank { "第${entry.chapterIndex + 1}章" },
+                            fontSize = 14.sp,
+                            fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
+                            color = if (selected) palette.accent else palette.text,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f),
+                        )
+                        if (selected) {
                             Text(
-                                text = (index + 1).toString().padStart(2, '0'),
-                                fontSize = 11.sp,
-                                fontFamily = FontFamily.Monospace,
-                                color = if (selected) palette.accent else palette.muted,
-                                modifier = Modifier.width(28.dp),
+                                text = "現在地",
+                                fontSize = 10.sp,
+                                color = palette.accent,
+                                modifier = Modifier.padding(start = 8.dp),
                             )
-                            Text(
-                                text = entry.title.ifBlank { "第${entry.chapterIndex + 1}章" },
-                                fontSize = 14.sp,
-                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
-                                color = if (selected) palette.accent else palette.text,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (selected) {
-                                Text(
-                                    text = "現在地",
-                                    fontSize = 10.sp,
-                                    color = palette.accent,
-                                    modifier = Modifier.padding(start = 8.dp),
-                                )
-                            }
                         }
                     }
-                    item { Spacer(Modifier.height(16.dp)) }
                 }
+                item { Spacer(Modifier.height(16.dp)) }
             }
         }
     }
@@ -207,53 +203,51 @@ fun ReaderSettingsSheet(
         scrimColor = Color.Black.copy(alpha = 0.45f),
         dragHandle = { BottomSheetDefaults.DragHandle(color = palette.rule) },
     ) {
-        MaterialTheme(colorScheme = readerColorScheme(palette)) {
-            Box(Modifier.fillMaxWidth()) {
-                Column(
+        Box(Modifier.fillMaxWidth()) {
+            Column(
+                Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .navigationBarsPadding()
+                    .padding(horizontal = 20.dp, vertical = 4.dp),
+            ) {
+                Row(
                     Modifier
                         .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .navigationBarsPadding()
-                        .padding(horizontal = 20.dp, vertical = 4.dp),
+                        .padding(end = 44.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(end = 44.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = "表示設定",
-                            fontFamily = FontFamily.Serif,
-                            fontWeight = FontWeight.SemiBold,
-                            fontSize = 22.sp,
-                        )
-                        Spacer(Modifier.weight(1f))
-                    }
-                    Spacer(Modifier.height(8.dp))
-                    ReaderSettingsContent(
-                        settings = draft,
-                        fonts = fonts,
-                        fontFileFor = fontFileFor,
-                        presets = presets,
-                        palette = palette,
-                        onChange = { draft = it },
-                        onSavePreset = onSavePreset,
-                        onDeletePreset = onDeletePreset,
+                    Text(
+                        text = "表示設定",
+                        fontFamily = FontFamily.Serif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 22.sp,
                     )
-                    Spacer(Modifier.height(24.dp))
+                    Spacer(Modifier.weight(1f))
                 }
-                Surface(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(12.dp),
-                    shape = CircleShape,
-                    color = palette.surface,
-                    shadowElevation = 4.dp,
-                ) {
-                    IconButton(onClick = { close() }) {
-                        Icon(Icons.Outlined.Close, contentDescription = "閉じる", tint = palette.muted)
-                    }
+                Spacer(Modifier.height(8.dp))
+                ReaderSettingsContent(
+                    settings = draft,
+                    fonts = fonts,
+                    fontFileFor = fontFileFor,
+                    presets = presets,
+                    palette = palette,
+                    onChange = { draft = it },
+                    onSavePreset = onSavePreset,
+                    onDeletePreset = onDeletePreset,
+                )
+                Spacer(Modifier.height(24.dp))
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(12.dp),
+                shape = CircleShape,
+                color = palette.surface,
+                shadowElevation = 4.dp,
+            ) {
+                IconButton(onClick = { close() }) {
+                    Icon(Icons.Outlined.Close, contentDescription = "閉じる", tint = palette.muted)
                 }
             }
         }

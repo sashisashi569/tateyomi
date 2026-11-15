@@ -98,6 +98,7 @@ import app.tateyomi.ui.LoadedBook
 import app.tateyomi.ui.MainViewModel
 import app.tateyomi.ui.ReaderUiState
 import app.tateyomi.ui.theme.ReaderPalette
+import app.tateyomi.ui.theme.materialReaderPalette
 import app.tateyomi.ui.theme.readerPalette
 import app.tateyomi.util.formatPercent
 import kotlinx.coroutines.Dispatchers
@@ -114,13 +115,14 @@ fun ReaderScreen(
     state: ReaderUiState,
     appSettings: AppSettings,
 ) {
-    val palette = readerPalette(appSettings.reader.theme)
+    val pagePalette = readerPalette(appSettings.reader.theme)
+    val chromePalette = materialReaderPalette()
     KeepScreenAwake()
 
     when (state) {
-        is ReaderUiState.Loading -> ReaderLoading(palette, onBack = viewModel::closeBook)
+        is ReaderUiState.Loading -> ReaderLoading(chromePalette, onBack = viewModel::closeBook)
         is ReaderUiState.Error -> ReaderError(
-            palette = palette,
+            palette = chromePalette,
             message = state.message,
             onRetry = { viewModel.retryOpen(state.bookId) },
             onBack = viewModel::closeBook,
@@ -138,7 +140,8 @@ fun ReaderScreen(
                 fontSpec = fontSpec,
                 fonts = appSettings.fonts,
                 presets = appSettings.presets,
-                palette = palette,
+                pagePalette = pagePalette,
+                chromePalette = chromePalette,
             )
         }
     }
@@ -152,7 +155,8 @@ private fun ReaderPager(
     fontSpec: ReaderFontSpec,
     fonts: List<ManagedFont>,
     presets: List<ReaderPreset>,
-    palette: ReaderPalette,
+    pagePalette: ReaderPalette,
+    chromePalette: ReaderPalette,
 ) {
     val location = viewModel.location.collectAsStateWithLifecycle().value ?: ReadingProgress()
     var layoutState by remember(book.summary.id) { mutableStateOf<ReaderLayout?>(null) }
@@ -242,7 +246,7 @@ private fun ReaderPager(
     Box(
         Modifier
             .fillMaxSize()
-            .background(palette.background)
+            .background(chromePalette.background)
             .windowInsetsPadding(WindowInsets.safeDrawing),
     ) {
         Column(Modifier.fillMaxSize()) {
@@ -250,7 +254,7 @@ private fun ReaderPager(
                 title = book.summary.title,
                 chapter = currentSectionTitle ?: currentChapter?.title.orEmpty(),
                 percent = progress?.let { formatPercent(it.overallFraction) } ?: "0%",
-                palette = palette,
+                palette = chromePalette,
                 onBack = viewModel::closeBook,
             )
 
@@ -284,7 +288,7 @@ private fun ReaderPager(
                 val currentLayout = layout
                 if (currentLayout == null) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        CircularProgressIndicator(color = palette.accent, strokeWidth = 2.dp)
+                        CircularProgressIndicator(color = chromePalette.accent, strokeWidth = 2.dp)
                     }
                 } else {
                     key(currentLayout, spread) {
@@ -345,7 +349,7 @@ private fun ReaderPager(
                                     layout = currentLayout,
                                     spreadIndex = pagerPage,
                                     fontSpec = fontSpec,
-                                    palette = palette,
+                                    palette = pagePalette,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             } else {
@@ -354,7 +358,7 @@ private fun ReaderPager(
                                     layout = currentLayout,
                                     page = pagerPage,
                                     fontSpec = fontSpec,
-                                    palette = palette,
+                                    palette = pagePalette,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -387,7 +391,7 @@ private fun ReaderPager(
                 pageLabel = pageLabel,
                 totalPages = totalPages,
                 atEnd = visibleEndPage >= totalPages - 1,
-                palette = palette,
+                palette = chromePalette,
                 onUserInteraction = { bottomBarInteraction++ },
                 onSeek = { target ->
                     pagerStateRef?.let { pagerState ->
@@ -417,7 +421,7 @@ private fun ReaderPager(
                 layout = currentLayout,
                 toc = book.content.toc,
                 currentPage = currentPage,
-                palette = palette,
+                palette = chromePalette,
                 onDismiss = { showToc = false },
                 onSelectEntry = { entry ->
                     showToc = false
@@ -440,7 +444,7 @@ private fun ReaderPager(
             fonts = fonts,
             fontFileFor = viewModel::fontFile,
             presets = presets,
-            palette = palette,
+            palette = chromePalette,
             onApply = viewModel::updateReaderSettings,
             onSavePreset = viewModel::savePreset,
             onDeletePreset = viewModel::deletePreset,

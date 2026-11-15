@@ -719,12 +719,26 @@ object EpubParser {
                     flush(inheritedStyle, indent, centered, anchor)
                     addImage(element, blockAnchor)
                 }
+                "image" -> {
+                    flush(inheritedStyle, indent, centered, anchor)
+                    addImage(element, blockAnchor)
+                }
+                "svg" -> {
+                    // Commercial Japanese EPUBs often wrap illustrations in
+                    // <svg><image xlink:href="..."/></svg>. Keep those pages
+                    // instead of dropping the spine item as empty.
+                    flush(inheritedStyle, indent, centered, anchor)
+                    element.elementsNamed("image").forEach { image ->
+                        val imageAnchor = image.id().takeIf { it.isNotBlank() } ?: blockAnchor
+                        addImage(image, imageAnchor)
+                    }
+                }
                 "ruby" -> appendRuby(element, bold)
                 "rt", "rp" -> Unit
                 "strong", "em", "b" -> visit(element, inheritedStyle, true, indent, centered, anchor)
                 "i", "u", "s", "span", "a", "small", "sub", "sup", "code",
                 -> visit(element, inheritedStyle, bold, indent, centered, anchor)
-                "script", "style", "nav", "svg", "head", "title", "meta", "link",
+                "script", "style", "nav", "head", "title", "meta", "link",
                 "iframe", "object", "embed", "form", "input", "button", "select", "textarea",
                 -> Unit
                 "hr" -> {
@@ -867,9 +881,10 @@ object EpubParser {
         private fun addImage(element: Element, anchor: String?) {
             if (imageByteBudget() > MAX_TOTAL_IMAGE_BYTES) return
             val alt = element.attr("alt")
-            val src = element.attr("src").ifBlank { element.attr("xlink:href") }.ifBlank {
-                element.attr("data-src")
-            }
+            val src = element.attr("src")
+                .ifBlank { element.attr("xlink:href") }
+                .ifBlank { element.attr("href") }
+                .ifBlank { element.attr("data-src") }
             if (src.isBlank()) return
 
             val bytes: ByteArray

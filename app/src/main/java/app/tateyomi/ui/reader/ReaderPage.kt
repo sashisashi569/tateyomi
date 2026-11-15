@@ -6,6 +6,7 @@ import android.graphics.Typeface
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,7 @@ import app.tateyomi.reader.PageContent
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderTypefaces
+import app.tateyomi.reader.MARGIN_BASE_DP
 import app.tateyomi.reader.SpreadLayout
 import app.tateyomi.reader.computeReaderMetrics
 import app.tateyomi.reader.needsManualVerticalRotation
@@ -167,7 +169,7 @@ private fun ReaderTextPage(
     modifier: Modifier,
 ) {
     val density = LocalDensity.current
-    val marginPx = with(density) { settings.marginDp.dp.toPx() }
+    val marginEm = settings.marginDp / MARGIN_BASE_DP
     val paints = remember(
         fontSpec.file?.absolutePath,
         fontSpec.family,
@@ -184,7 +186,7 @@ private fun ReaderTextPage(
     }
 
     androidx.compose.foundation.Canvas(modifier.fillMaxSize().background(palette.background)) {
-        val metrics = computeReaderMetrics(settings, size.width, size.height, marginPx)
+        val metrics = computeReaderMetrics(settings, size.width, size.height, marginEm)
         val margin = metrics.margin
         val usableWidth = metrics.usableWidth
         val usableHeight = metrics.usableHeight
@@ -319,37 +321,49 @@ private fun ReaderImagePage(
     modifier: Modifier,
 ) {
     val bitmap = rememberBitmap(File(bookDir, "images/${image.file}"), 2048)
-    Box(
+    BoxWithConstraints(
         modifier = modifier
             .fillMaxSize()
-            .background(palette.background)
-            .padding(settings.marginDp.dp),
+            .background(palette.background),
         contentAlignment = Alignment.Center,
     ) {
-        if (bitmap != null) {
-            Image(
-                bitmap = bitmap,
-                contentDescription = image.alt.ifBlank { null },
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Fit,
-            )
-        } else {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator(
-                    color = palette.muted,
-                    strokeWidth = 1.5.dp,
-                )
-            }
-        }
-        Text(
-            text = pageNumber.toString(),
-            color = palette.muted.copy(alpha = 0.7f),
-            fontSize = 10.sp,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 2.dp),
-            textAlign = TextAlign.Center,
+        val density = LocalDensity.current
+        val metrics = computeReaderMetrics(
+            settings = settings,
+            widthPx = constraints.maxWidth.toFloat(),
+            heightPx = constraints.maxHeight.toFloat(),
+            marginEm = settings.marginDp / MARGIN_BASE_DP,
         )
+        val margin = with(density) { metrics.margin.toDp() }
+        Box(
+            Modifier.fillMaxSize().padding(margin),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (bitmap != null) {
+                Image(
+                    bitmap = bitmap,
+                    contentDescription = image.alt.ifBlank { null },
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Fit,
+                )
+            } else {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(
+                        color = palette.muted,
+                        strokeWidth = 1.5.dp,
+                    )
+                }
+            }
+            Text(
+                text = pageNumber.toString(),
+                color = palette.muted.copy(alpha = 0.7f),
+                fontSize = 10.sp,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 2.dp),
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -478,15 +492,17 @@ private fun drawRuby(
 
         paint.textSize = fontSize * 0.36f
         val rubySize = paint.textSize
+        // The ruby sits in the middle of the gap between two lines/columns.
+        // With the default 1.5 line spacing this is 0.75em from the base
+        // centre, clear of both the base glyph and the neighbouring line.
+        val rubyOffset = fontSize * settings.lineSpacing / 2f
         val baseSpanPx: Float
         val centerMain: Float
         if (settings.vertical) {
             baseSpanPx = (lastCell - firstCell + 1) * fontSize
             centerMain = inlineStart + (firstCell + lastCell + 1) * fontSize / 2f
-            val x = min(
-                right - rubySize * 0.2f,
-                lineCenter + fontSize * 0.46f,
-            )
+            val pageRight = right + margin
+            val x = min(pageRight - rubySize / 2f, lineCenter + rubyOffset)
             val spacing = min(rubySize * 1.15f, baseSpanPx / reading.length)
             val total = spacing * reading.length
             var y = centerMain - total / 2f + spacing / 2f
@@ -497,7 +513,7 @@ private fun drawRuby(
         } else {
             baseSpanPx = (lastCell - firstCell + 1) * fontSize
             centerMain = inlineStart + (firstCell + lastCell + 1) * fontSize / 2f
-            val y = max(margin + rubySize, lineCenter - fontSize * 0.62f)
+            val y = max(rubySize / 2f, lineCenter - rubyOffset)
             val spacing = min(rubySize * 1.1f, baseSpanPx / reading.length)
             val total = spacing * reading.length
             var x = centerMain - total / 2f + spacing / 2f

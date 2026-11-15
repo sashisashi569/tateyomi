@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,7 +35,6 @@ import app.tateyomi.ui.library.LibraryScreen
 import app.tateyomi.ui.reader.ReaderScreen
 import app.tateyomi.ui.stats.StatsScreen
 import app.tateyomi.ui.theme.TateyomiTheme
-import app.tateyomi.ui.theme.readerPalette
 
 @Composable
 fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
@@ -78,11 +78,9 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
         AppThemeMode.DARK -> true
     }
 
-    val systemBarsDark = if (screen is Screen.Reader) {
-        readerPalette(settings.reader.theme).isDark
-    } else {
-        darkTheme
-    }
+    // The reader chrome follows the app theme, not the paper color, so the
+    // system bars should match the app theme even while a paper page is open.
+    val systemBarsDark = darkTheme
     val view = LocalView.current
     SideEffect {
         val window = view.context.findActivity()?.window ?: return@SideEffect
@@ -91,50 +89,56 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
     }
 
     TateyomiTheme(darkTheme = darkTheme, amoled = appearance.amoled) {
-        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-            when (val current = screen) {
-                is Screen.Library -> LibraryScreen(
-                    books = library,
-                    ready = ready,
-                    importState = importState,
-                    coverFile = viewModel::coverFile,
-                    onImport = viewModel::importBooks,
-                    onOpenBook = viewModel::openBook,
-                    onOpenStats = viewModel::openStats,
-                    onOpenSettings = viewModel::openSettings,
-                    onDeleteBook = viewModel::deleteBook,
-                )
-                is Screen.Reader -> ReaderScreen(
-                    viewModel = viewModel,
-                    state = readerState ?: ReaderUiState.Loading,
-                    appSettings = settings,
-                )
-                is Screen.Stats -> StatsScreen(
-                    books = library,
-                    stats = stats,
-                    onBack = viewModel::back,
-                )
-                is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
-                    settings = settings,
-                    fontBusy = fontBusy,
-                    fontFileFor = viewModel::fontFile,
-                    onBack = viewModel::back,
-                    onReaderSettingsChange = viewModel::updateReaderSettings,
-                    onSavePreset = viewModel::savePreset,
-                    onDeletePreset = viewModel::deletePreset,
-                    onAppearanceChange = viewModel::updateAppearance,
-                    onAddFont = viewModel::addFont,
-                    onDeleteFont = viewModel::deleteFont,
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+            contentColor = MaterialTheme.colorScheme.onBackground,
+        ) {
+            Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+                when (val current = screen) {
+                    is Screen.Library -> LibraryScreen(
+                        books = library,
+                        ready = ready,
+                        importState = importState,
+                        coverFile = viewModel::coverFile,
+                        onImport = viewModel::importBooks,
+                        onOpenBook = viewModel::openBook,
+                        onOpenStats = viewModel::openStats,
+                        onOpenSettings = viewModel::openSettings,
+                        onDeleteBook = viewModel::deleteBook,
+                    )
+                    is Screen.Reader -> ReaderScreen(
+                        viewModel = viewModel,
+                        state = readerState ?: ReaderUiState.Loading,
+                        appSettings = settings,
+                    )
+                    is Screen.Stats -> StatsScreen(
+                        books = library,
+                        stats = stats,
+                        onBack = viewModel::back,
+                    )
+                    is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
+                        settings = settings,
+                        fontBusy = fontBusy,
+                        fontFileFor = viewModel::fontFile,
+                        onBack = viewModel::back,
+                        onReaderSettingsChange = viewModel::updateReaderSettings,
+                        onSavePreset = viewModel::savePreset,
+                        onDeletePreset = viewModel::deletePreset,
+                        onAppearanceChange = viewModel::updateAppearance,
+                        onAddFont = viewModel::addFont,
+                        onDeleteFont = viewModel::deleteFont,
+                    )
+                }
+
+                SnackbarHost(
+                    hostState = snackbar,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .navigationBarsPadding(),
                 )
             }
-
-            SnackbarHost(
-                hostState = snackbar,
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(horizontal = 16.dp, vertical = 12.dp)
-                    .navigationBarsPadding(),
-            )
         }
     }
 }

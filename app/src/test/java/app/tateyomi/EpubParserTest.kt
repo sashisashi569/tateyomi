@@ -172,6 +172,58 @@ class EpubParserTest {
     }
 
     @Test
+    fun keepsSvgWrappedIllustrationPages() {
+        val epub = writeEpub(
+            mapOf(
+                "mimetype" to "application/epub+zip",
+                "META-INF/container.xml" to """
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles>
+                        <rootfile full-path="OPS/content.opf" media-type="application/oebps-package+xml"/>
+                      </rootfiles>
+                    </container>
+                """.trimIndent(),
+                "OPS/content.opf" to """
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>SVG挿絵テスト</dc:title>
+                      </metadata>
+                      <manifest>
+                        <item id="plate" href="xhtml/plate.xhtml" media-type="application/xhtml+xml" properties="svg"/>
+                        <item id="text" href="xhtml/text.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="image" href="image/plate.png" media-type="image/png"/>
+                      </manifest>
+                      <spine>
+                        <itemref idref="plate"/>
+                        <itemref idref="text"/>
+                      </spine>
+                    </package>
+                """.trimIndent(),
+                "OPS/xhtml/plate.xhtml" to """
+                    <html xmlns="http://www.w3.org/1999/xhtml"
+                          xmlns:xlink="http://www.w3.org/1999/xlink">
+                      <body><div class="main">
+                        <svg version="1.1" viewBox="0 0 1443 2048">
+                          <image width="1443" height="2048" xlink:href="../image/plate.png"/>
+                        </svg>
+                      </div></body>
+                    </html>
+                """.trimIndent(),
+                "OPS/xhtml/text.xhtml" to "<html><body><p>SVGの後の本文です。</p></body></html>",
+                "OPS/image/plate.png" to pixelPng,
+            ),
+        )
+
+        val parsed = EpubParser.parse(epub)
+        assertEquals(2, parsed.chapters.size)
+        assertTrue(parsed.chapters[0].blocks.single() is ImageBlock)
+        assertEquals(1, parsed.images.size)
+        assertTrue(parsed.chapters[1].blocks.filterIsInstance<TextBlock>().any {
+            it.text.contains("SVGの後の本文")
+        })
+    }
+
+    @Test
     fun rejectsNonZipFile() {
         val file = temporaryFolder.newFile("broken.epub")
         file.writeText("this is not an epub")

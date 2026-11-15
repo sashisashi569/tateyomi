@@ -253,6 +253,11 @@ fun ReaderSettingsContent(
             palette = palette,
             onChange = { onChange(settings.copy(marginDp = it)) },
         )
+        Text(
+            text = "余白は文字サイズに比例して描画されます。",
+            fontSize = 10.sp,
+            color = palette.muted,
+        )
 
         Spacer(Modifier.height(14.dp))
         SectionLabel("紙面", palette)

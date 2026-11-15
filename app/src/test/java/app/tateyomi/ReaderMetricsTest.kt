@@ -19,7 +19,7 @@ class ReaderMetricsTest {
             ),
             widthPx = 1000f,
             heightPx = 2000f,
-            marginPx = 0f,
+            marginEm = 0f,
         )
 
         // Height allows 50px glyphs, but 20 lines at 2.0 spacing only allow
@@ -53,6 +53,23 @@ class ReaderMetricsTest {
     }
 
     @Test
+    fun marginScalesWithGlyphSize() {
+        val settings = ReaderSettings(
+            vertical = true,
+            charsPerLine = 40,
+            linesPerPage = 16,
+            lineSpacing = 1.5f,
+        )
+        val portrait = computeReaderMetrics(settings, 1000f, 2000f, marginEm = 1f)
+        val landscape = computeReaderMetrics(settings, 1000f, 800f, marginEm = 1f)
+
+        assertEquals(1f, portrait.margin / portrait.fontSize, 0.0001f)
+        assertEquals(1f, landscape.margin / landscape.fontSize, 0.0001f)
+        // The margin is proportional, so it shrinks with the glyphs.
+        assertTrue(landscape.margin < portrait.margin)
+    }
+
+    @Test
     fun horizontalUsesWidthForGlyphsAndHeightForLines() {
         val metrics = computeReaderMetrics(
             settings = ReaderSettings(
@@ -63,7 +80,7 @@ class ReaderMetricsTest {
             ),
             widthPx = 1000f,
             heightPx = 1600f,
-            marginPx = 0f,
+            marginEm = 0f,
         )
 
         // Width allows 40px glyphs; 40 lines at 1.6 spacing allow 25px.

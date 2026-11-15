@@ -3,6 +3,9 @@ package app.tateyomi.reader
 import app.tateyomi.data.ReaderSettings
 import kotlin.math.min
 
+/** The dp value treated as one em for the margin setting. */
+const val MARGIN_BASE_DP = 16f
+
 /**
  * Geometry shared by the paginator and the canvas renderer.
  *
@@ -27,13 +30,10 @@ fun computeReaderMetrics(
     settings: ReaderSettings,
     widthPx: Float,
     heightPx: Float,
-    marginPx: Float,
+    marginEm: Float,
 ): ReaderMetrics {
     val width = widthPx.coerceAtLeast(1f)
     val height = heightPx.coerceAtLeast(1f)
-    val margin = marginPx.coerceIn(0f, min(width, height) * 0.22f)
-    val usableWidth = (width - margin * 2f).coerceAtLeast(1f)
-    val usableHeight = (height - margin * 2f).coerceAtLeast(1f)
     val chars = settings.charsPerLine.coerceAtLeast(1)
     val lines = settings.linesPerPage.coerceAtLeast(1)
     val lineSpacing = settings.lineSpacing.coerceIn(
@@ -41,12 +41,22 @@ fun computeReaderMetrics(
         ReaderSettings.MAX_LINE_SPACING,
     )
 
-    val inlineExtent = if (settings.vertical) usableHeight else usableWidth
-    val blockExtent = if (settings.vertical) usableWidth else usableHeight
+    // The margin is expressed in em (multiples of the rendered glyph size),
+    // not in fixed pixels. This keeps margins and line spacing visually
+    // proportional when the glyph size changes between portrait and landscape
+    // (or between one-page and spread layouts).
+    val marginFactor = marginEm.coerceAtLeast(0f)
+    val inlineExtentRaw = if (settings.vertical) height else width
+    val blockExtentRaw = if (settings.vertical) width else height
     val fontSize = min(
-        inlineExtent / chars,
-        blockExtent / (lines * lineSpacing),
+        inlineExtentRaw / (chars + 2f * marginFactor),
+        blockExtentRaw / (lines * lineSpacing + 2f * marginFactor),
     ).coerceAtLeast(1f)
+    val margin = marginFactor * fontSize
+    val usableWidth = (width - margin * 2f).coerceAtLeast(1f)
+    val usableHeight = (height - margin * 2f).coerceAtLeast(1f)
+
+    val inlineExtent = if (settings.vertical) usableHeight else usableWidth
     val linePitch = fontSize * lineSpacing
     val inlineOffset = ((inlineExtent - fontSize * chars) / 2f).coerceAtLeast(0f)
 

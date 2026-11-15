@@ -58,7 +58,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -77,7 +76,7 @@ import app.tateyomi.data.effectiveFontId
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.ui.components.FontSample
 import app.tateyomi.ui.components.ReaderSettingsContent
-import app.tateyomi.ui.theme.ReaderPalette
+import app.tateyomi.ui.theme.materialReaderPalette
 import java.io.File
 import java.util.Locale
 
@@ -397,20 +396,6 @@ private fun DisplaySettingsPage(
         )
         Spacer(Modifier.height(28.dp))
     }
-}
-
-@Composable
-private fun materialReaderPalette(): ReaderPalette {
-    val scheme = MaterialTheme.colorScheme
-    return ReaderPalette(
-        background = scheme.background,
-        surface = scheme.surface,
-        text = scheme.onSurface,
-        muted = scheme.onSurfaceVariant,
-        accent = scheme.primary,
-        rule = scheme.outlineVariant,
-        isDark = scheme.background.luminance() < 0.5f,
-    )
 }
 
 @Composable
