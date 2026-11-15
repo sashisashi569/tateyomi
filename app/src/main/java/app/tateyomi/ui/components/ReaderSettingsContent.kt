@@ -206,7 +206,7 @@ fun ReaderSettingsContent(
             onChange = { onChange(settings.copy(spreadGapDp = it)) },
         )
         Text(
-            text = "見開き表示のとき、左右ページの間に空ける余白です。",
+            text = "見開き表示のとき、左右ページの間に空ける余白です。負の値にするとページ同士を重ねます。",
             fontSize = 10.sp,
             color = palette.muted,
         )

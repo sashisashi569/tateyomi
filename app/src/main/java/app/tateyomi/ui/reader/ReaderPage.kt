@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
@@ -101,25 +102,29 @@ fun ReaderSpreadView(
     val second = SpreadLayout.secondPage(spreadIndex, layout.totalPages)
     val vertical = layout.settings.vertical
     Box(modifier.background(palette.background)) {
+        val gapDp = layout.settings.spreadGapDp
+        val overlapDp = (-gapDp).coerceAtLeast(0).toFloat()
+        val overlapOffset = (overlapDp / 2f).dp
         Row(Modifier.fillMaxSize()) {
-            val gap = Modifier.width(layout.settings.spreadGapDp.dp)
             if (vertical) {
-                SpreadSlot(second, book, layout, fontSpec, palette)
-                Spacer(gap)
-                SpreadSlot(first, book, layout, fontSpec, palette)
+                SpreadSlot(second, book, layout, fontSpec, palette, overlapOffset)
+                if (gapDp > 0) Spacer(Modifier.width(gapDp.dp))
+                SpreadSlot(first, book, layout, fontSpec, palette, -overlapOffset)
             } else {
-                SpreadSlot(first, book, layout, fontSpec, palette)
-                Spacer(gap)
-                SpreadSlot(second, book, layout, fontSpec, palette)
+                SpreadSlot(first, book, layout, fontSpec, palette, overlapOffset)
+                if (gapDp > 0) Spacer(Modifier.width(gapDp.dp))
+                SpreadSlot(second, book, layout, fontSpec, palette, -overlapOffset)
             }
         }
-        Box(
-            Modifier
-                .align(Alignment.Center)
-                .fillMaxHeight()
-                .width(1.dp)
-                .background(palette.rule.copy(alpha = 0.35f)),
-        )
+        if (gapDp >= 0) {
+            Box(
+                Modifier
+                    .align(Alignment.Center)
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(palette.rule.copy(alpha = 0.35f)),
+            )
+        }
     }
 }
 
@@ -130,8 +135,14 @@ private fun RowScope.SpreadSlot(
     layout: ReaderLayout,
     fontSpec: ReaderFontSpec,
     palette: ReaderPalette,
+    offsetX: androidx.compose.ui.unit.Dp,
 ) {
-    Box(Modifier.weight(1f).fillMaxHeight()) {
+    Box(
+        Modifier
+            .weight(1f)
+            .fillMaxHeight()
+            .offset(x = offsetX),
+    ) {
         if (page != null) {
             ReaderPageView(
                 book = book,

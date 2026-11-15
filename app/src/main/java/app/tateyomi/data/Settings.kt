@@ -79,8 +79,8 @@ data class ReaderSettings(
         const val MIN_LINE_SPACING = 1.0f
         const val MAX_LINE_SPACING = 2.5f
         const val MIN_MARGIN = 0
-        const val MAX_MARGIN = 56
-        const val MIN_SPREAD_GAP = 0
+        const val MAX_MARGIN = 168
+        const val MIN_SPREAD_GAP = -64
         const val MAX_SPREAD_GAP = 64
 
         val Default = ReaderSettings()
