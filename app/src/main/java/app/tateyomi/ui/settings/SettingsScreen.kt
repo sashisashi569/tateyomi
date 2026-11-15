@@ -31,10 +31,13 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Backup
+import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FontDownload
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Palette
+import androidx.compose.material.icons.outlined.Upload
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -42,6 +45,7 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -72,23 +76,28 @@ import app.tateyomi.data.BuiltInFonts
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
+import app.tateyomi.data.ReadingStats
 import app.tateyomi.data.effectiveFontId
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.ui.components.FontSample
 import app.tateyomi.ui.components.ReaderSettingsContent
 import app.tateyomi.ui.theme.materialReaderPalette
 import java.io.File
+import java.time.LocalDate
 import java.util.Locale
 
 private const val PAGE_HOME = 0
 private const val PAGE_DISPLAY = 1
 private const val PAGE_FONTS = 2
 private const val PAGE_ABOUT = 3
+private const val PAGE_BACKUP = 4
 
 @Composable
 fun SettingsScreen(
     settings: AppSettings,
+    stats: ReadingStats,
     fontBusy: Boolean,
+    backupBusy: Boolean,
     fontFileFor: (String) -> File?,
     onBack: () -> Unit,
     onReaderSettingsChange: (app.tateyomi.data.ReaderSettings) -> Unit,
@@ -97,12 +106,15 @@ fun SettingsScreen(
     onAppearanceChange: (AppearanceSettings) -> Unit,
     onAddFont: (Uri) -> Unit,
     onDeleteFont: (String) -> Unit,
+    onExportBackup: (Uri) -> Unit,
+    onImportBackup: (Uri) -> Unit,
 ) {
     var page by rememberSaveable { mutableIntStateOf(PAGE_HOME) }
     val title = when (page) {
         PAGE_DISPLAY -> "表示設定"
         PAGE_FONTS -> "フォントマネージャー"
         PAGE_ABOUT -> "アプリ情報"
+        PAGE_BACKUP -> "バックアップ"
         else -> "設定"
     }
 
@@ -138,12 +150,20 @@ fun SettingsScreen(
                 onDeleteFont = onDeleteFont,
             )
             PAGE_ABOUT -> AppInfoPage()
+            PAGE_BACKUP -> BackupPage(
+                settings = settings,
+                stats = stats,
+                busy = backupBusy,
+                onExport = onExportBackup,
+                onImport = onImportBackup,
+            )
             else -> SettingsHome(
                 appearance = settings.appearance,
                 onAppearanceChange = onAppearanceChange,
                 onOpenDisplay = { page = PAGE_DISPLAY },
                 onOpenFonts = { page = PAGE_FONTS },
                 onOpenAbout = { page = PAGE_ABOUT },
+                onOpenBackup = { page = PAGE_BACKUP },
             )
         }
     }
@@ -177,6 +197,7 @@ private fun SettingsHome(
     onOpenDisplay: () -> Unit,
     onOpenFonts: () -> Unit,
     onOpenAbout: () -> Unit,
+    onOpenBackup: () -> Unit,
 ) {
     Column(
         Modifier
@@ -192,7 +213,7 @@ private fun SettingsHome(
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            text = "表示・フォント・外観・アプリの情報",
+            text = "表示・フォント・外観・バックアップ・アプリの情報",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, bottom = 22.dp),
@@ -210,6 +231,13 @@ private fun SettingsHome(
             title = "フォントマネージャー",
             subtitle = "フォントの追加・削除",
             onClick = onOpenFonts,
+        )
+        Spacer(Modifier.height(12.dp))
+        SettingsMenuRow(
+            icon = { Icon(Icons.Outlined.Backup, contentDescription = null) },
+            title = "バックアップ",
+            subtitle = "プリセット・読書統計のJSON",
+            onClick = onOpenBackup,
         )
         Spacer(Modifier.height(12.dp))
         SettingsMenuRow(
@@ -573,6 +601,154 @@ private fun FontManagerPage(
             },
             dismissButton = {
                 TextButton(onClick = { pendingDelete = null }) {
+                    Text("キャンセル")
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun BackupPage(
+    settings: AppSettings,
+    stats: ReadingStats,
+    busy: Boolean,
+    onExport: (Uri) -> Unit,
+    onImport: (Uri) -> Unit,
+) {
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri -> if (uri != null) onExport(uri) }
+    var pendingImport by remember { mutableStateOf<Uri?>(null) }
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument(),
+    ) { uri -> if (uri != null) pendingImport = uri }
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = "プリセットと読書統計",
+            fontFamily = FontFamily.Serif,
+            fontWeight = FontWeight.SemiBold,
+            fontSize = 24.sp,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        Text(
+            text = "1つのJSONファイルにまとめて書き出します。",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 2.dp, bottom = 18.dp),
+        )
+
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("書き出す", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(
+                    text = "プリセット ${settings.presets.size}件 / " +
+                        "読書統計 ${stats.books.size}冊・${stats.dailySeconds.size}日分",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
+                )
+                FilledTonalButton(
+                    onClick = {
+                        exportLauncher.launch("tateyomi-backup-${LocalDate.now()}.json")
+                    },
+                    enabled = !busy,
+                ) {
+                    Icon(
+                        Icons.Outlined.Download,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("JSONに書き出す")
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+        ) {
+            Column(Modifier.padding(16.dp)) {
+                Text("読み込む", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
+                Text(
+                    text = "プリセットは同名のものを上書きして追加します。" +
+                        "読書統計は現在の値と合算します。",
+                    fontSize = 11.sp,
+                    lineHeight = 17.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 2.dp, bottom = 12.dp),
+                )
+                OutlinedButton(
+                    onClick = { importLauncher.launch(arrayOf("*/*")) },
+                    enabled = !busy,
+                ) {
+                    Icon(
+                        Icons.Outlined.Upload,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(Modifier.width(6.dp))
+                    Text("JSONを読み込む")
+                }
+            }
+        }
+
+        if (busy) {
+            Row(
+                Modifier.padding(top = 16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                Spacer(Modifier.width(10.dp))
+                Text("処理中…", fontSize = 12.sp)
+            }
+        }
+
+        Text(
+            text = "本文データ・フォントファイル・本棚はバックアップに含まれません。",
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 18.dp, bottom = 24.dp),
+        )
+    }
+
+    pendingImport?.let { uri ->
+        AlertDialog(
+            onDismissRequest = { pendingImport = null },
+            title = { Text("バックアップを読み込む", fontFamily = FontFamily.Serif) },
+            text = {
+                Text(
+                    "プリセットは同名のものを上書きし、読書統計は現在の値と合算します。",
+                    fontSize = 14.sp,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingImport = null
+                        onImport(uri)
+                    },
+                ) {
+                    Text("読み込む")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingImport = null }) {
                     Text("キャンセル")
                 }
             },

@@ -9,6 +9,8 @@ import app.tateyomi.TateyomiApp
 import app.tateyomi.data.AppRepository
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.AppearanceSettings
+import app.tateyomi.data.BackupFile
+import app.tateyomi.data.BackupJson
 import app.tateyomi.data.BookContent
 import app.tateyomi.data.BookSummary
 import app.tateyomi.data.EpubException
@@ -77,6 +79,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _fontBusy = MutableStateFlow(false)
     val fontBusy: StateFlow<Boolean> = _fontBusy.asStateFlow()
+
+    private val _backupBusy = MutableStateFlow(false)
+    val backupBusy: StateFlow<Boolean> = _backupBusy.asStateFlow()
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
@@ -180,6 +185,56 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _messages.tryEmit("フォントを削除しました")
             } catch (e: Exception) {
                 _messages.tryEmit(e.message ?: "フォントを削除できませんでした")
+            }
+        }
+    }
+
+    fun exportBackup(uri: Uri) {
+        if (_backupBusy.value) return
+        viewModelScope.launch {
+            _backupBusy.value = true
+            try {
+                val backup = repository.createBackup()
+                val text = BackupJson.encodeToString(BackupFile.serializer(), backup)
+                withContext(Dispatchers.IO) {
+                    val output = getApplication<Application>().contentResolver
+                        .openOutputStream(uri)
+                        ?: error("ファイルを開けませんでした")
+                    output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                }
+                _messages.tryEmit("バックアップを書き出しました")
+            } catch (e: Exception) {
+                _messages.tryEmit(e.message ?: "バックアップを書き出せませんでした")
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
+    fun importBackup(uri: Uri) {
+        if (_backupBusy.value) return
+        viewModelScope.launch {
+            _backupBusy.value = true
+            try {
+                val text = withContext(Dispatchers.IO) {
+                    val bytes = getApplication<Application>().contentResolver
+                        .openInputStream(uri)
+                        ?.use { it.readBytes() }
+                        ?: error("ファイルを開けませんでした")
+                    if (bytes.size > 8 * 1024 * 1024) {
+                        error("バックアップファイルが大きすぎます")
+                    }
+                    bytes.toString(Charsets.UTF_8)
+                }
+                val backup = BackupJson.decodeFromString(BackupFile.serializer(), text)
+                val result = withContext(Dispatchers.IO) { repository.importBackup(backup) }
+                _messages.tryEmit(
+                    "プリセット${result.presetCount}件・統計${result.statsBookCount}冊を読み込みました",
+                )
+            } catch (e: Exception) {
+                _messages.tryEmit(e.message ?: "バックアップを読み込めませんでした")
+            } finally {
+                _backupBusy.value = false
             }
         }
     }

@@ -30,6 +30,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -92,6 +93,7 @@ fun ReaderSettingsContent(
 ) {
     var showFontDialog by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
+    var pendingOverwrite by remember { mutableStateOf<String?>(null) }
     val fontId = settings.effectiveFontId()
     val allFonts = remember(fonts) { BuiltInFonts.all + fonts }
 
@@ -402,6 +404,9 @@ fun ReaderSettingsContent(
 
     if (showSaveDialog) {
         var name by remember { mutableStateOf("") }
+        val trimmedName = name.trim()
+        val builtInNameTaken = BuiltInPresets.any { it.name == trimmedName }
+        val duplicateName = presets.any { it.name == trimmedName }
         AlertDialog(
             onDismissRequest = { showSaveDialog = false },
             containerColor = palette.surface,
@@ -409,27 +414,81 @@ fun ReaderSettingsContent(
             textContentColor = palette.text,
             title = { Text("プリセットを保存", fontFamily = FontFamily.Serif) },
             text = {
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(24) },
-                    label = { Text("プリセット名") },
-                    placeholder = { Text("例: 通勤用") },
-                    singleLine = true,
-                )
+                androidx.compose.foundation.layout.Column {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it.take(24) },
+                        label = { Text("プリセット名") },
+                        placeholder = { Text("例: 通勤用") },
+                        singleLine = true,
+                    )
+                    when {
+                        builtInNameTaken -> Text(
+                            text = "組み込みプリセットと同じ名前は使用できません。",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                        duplicateName -> Text(
+                            text = "同じ名前のプリセットがあります。保存時に上書きを確認します。",
+                            fontSize = 10.sp,
+                            color = palette.muted,
+                            modifier = Modifier.padding(top = 6.dp),
+                        )
+                    }
+                }
             },
             confirmButton = {
                 Button(
                     onClick = {
-                        onSavePreset(name, settings.normalized())
-                        showSaveDialog = false
+                        when {
+                            trimmedName.isEmpty() || builtInNameTaken -> Unit
+                            duplicateName -> pendingOverwrite = trimmedName
+                            else -> {
+                                onSavePreset(trimmedName, settings.normalized())
+                                showSaveDialog = false
+                            }
+                        }
                     },
-                    enabled = name.isNotBlank(),
+                    enabled = trimmedName.isNotEmpty() && !builtInNameTaken,
                 ) {
                     Text("保存")
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showSaveDialog = false }) {
+                    Text("キャンセル")
+                }
+            },
+        )
+    }
+
+    pendingOverwrite?.let { name ->
+        AlertDialog(
+            onDismissRequest = { pendingOverwrite = null },
+            containerColor = palette.surface,
+            titleContentColor = palette.text,
+            textContentColor = palette.text,
+            title = { Text("プリセットを上書き", fontFamily = FontFamily.Serif) },
+            text = {
+                Text(
+                    "「$name」は既に保存されています。上書きしますか？",
+                    fontSize = 14.sp,
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onSavePreset(name, settings.normalized())
+                        pendingOverwrite = null
+                        showSaveDialog = false
+                    },
+                ) {
+                    Text("上書き")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingOverwrite = null }) {
                     Text("キャンセル")
                 }
             },

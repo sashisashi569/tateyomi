@@ -353,15 +353,45 @@ class AppRepository(private val context: Context) {
         val cleanName = name.trim().take(24)
         if (cleanName.isEmpty()) return
         _settings.update { current ->
+            val existing = current.presets.firstOrNull { it.name == cleanName }
+            val preset = ReaderPreset(
+                id = existing?.id ?: UUID.randomUUID().toString(),
+                name = cleanName,
+                settings = reader.normalized(),
+            )
             current.copy(
-                presets = current.presets + ReaderPreset(
-                    id = UUID.randomUUID().toString(),
-                    name = cleanName,
-                    settings = reader.normalized(),
-                ),
+                presets = if (existing == null) {
+                    current.presets + preset
+                } else {
+                    current.presets.map { if (it.id == existing.id) preset else it }
+                },
             )
         }
         scope.launch { persistSettings() }
+    }
+
+    fun createBackup(): BackupFile = BackupFile(
+        exportedAt = System.currentTimeMillis(),
+        presets = _settings.value.presets,
+        stats = _stats.value,
+    )
+
+    suspend fun importBackup(backup: BackupFile): BackupImportResult {
+        if (backup.format.isNotBlank() && backup.format != "tateyomi-backup") {
+            throw EpubException("縦読みのバックアップファイルではありません")
+        }
+        if (backup.version > 1) {
+            throw EpubException("このバックアップは新しい形式のため読み込めません")
+        }
+        val mergedPresets = mergePresetsByName(_settings.value.presets, backup.presets)
+        _settings.update { it.copy(presets = mergedPresets) }
+        persistSettings()
+        _stats.value = mergeReadingStats(_stats.value, backup.stats)
+        persistStats()
+        return BackupImportResult(
+            presetCount = backup.presets.size,
+            statsBookCount = backup.stats.books.size,
+        )
     }
 
     fun deletePreset(id: String) {
