@@ -310,7 +310,14 @@ private fun ReaderTextPage(
                             if (settings.vertical) {
                                 val x = lineCenter
                                 val y = inlineStart + fontSize * (cell + 0.5f)
-                                drawVerticalGlyph(native, ch, x, y, paint)
+                                drawVerticalGlyph(
+                                    native,
+                                    ch,
+                                    x,
+                                    y,
+                                    paint,
+                                    paints.manuallyRotates(ch),
+                                )
                             } else {
                                 val x = inlineStart + fontSize * (cell + 0.5f)
                                 val y = lineCenter
@@ -464,9 +471,15 @@ private fun drawHorizontalRun(
     paint.textScaleX = oldScale
 }
 
-private fun drawVerticalGlyph(canvas: Canvas, ch: Char, x: Float, y: Float, paint: Paint) {
+private fun drawVerticalGlyph(
+    canvas: Canvas,
+    ch: Char,
+    x: Float,
+    y: Float,
+    paint: Paint,
+    manualRotation: Boolean,
+) {
     val metrics = paint.fontMetrics
-    val manualRotation = needsManualVerticalRotation(ch)
     if (manualRotation || ch.code in 0x21..0x7E) {
         val oldFeatures = paint.fontFeatureSettings
         if (manualRotation) {
@@ -615,6 +628,10 @@ private class ReaderPaints(
     private val normal: Typeface = ReaderTypefaces.typeface(font, bold = false)
     private val bold: Typeface = ReaderTypefaces.typeface(font, bold = true)
     private val vertFeature = if (vertical) "vert" else null
+    private val verticalForms = ReaderTypefaces.verticalFormChars(font)
+
+    fun manuallyRotates(ch: Char): Boolean =
+        needsManualVerticalRotation(ch) && ch !in verticalForms
 
     val body: Paint = base(normal)
     val boldBody: Paint = base(normal).apply { isFakeBoldText = true }
