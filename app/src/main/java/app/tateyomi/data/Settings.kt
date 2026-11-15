@@ -59,6 +59,7 @@ data class ReaderSettings(
     val fontId: String? = null,
     val theme: ReaderTheme = ReaderTheme.PAPER,
     val spread: SpreadMode = SpreadMode.AUTO,
+    val spreadGapDp: Int = 0,
 ) {
     fun normalized(): ReaderSettings = copy(
         charsPerLine = charsPerLine.coerceIn(MIN_CHARS, MAX_CHARS),
@@ -67,6 +68,7 @@ data class ReaderSettings(
             .coerceIn(MIN_LINE_SPACING, MAX_LINE_SPACING),
         indent = indent.coerceIn(0, 3),
         marginDp = marginDp.coerceIn(MIN_MARGIN, MAX_MARGIN),
+        spreadGapDp = spreadGapDp.coerceIn(MIN_SPREAD_GAP, MAX_SPREAD_GAP),
     )
 
     companion object {
@@ -78,6 +80,8 @@ data class ReaderSettings(
         const val MAX_LINE_SPACING = 2.5f
         const val MIN_MARGIN = 0
         const val MAX_MARGIN = 56
+        const val MIN_SPREAD_GAP = 0
+        const val MAX_SPREAD_GAP = 64
 
         val Default = ReaderSettings()
 

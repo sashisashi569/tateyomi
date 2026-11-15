@@ -39,6 +39,14 @@ class SpreadTest {
     }
 
     @Test
+    fun spreadGapDefaultsToZeroAndClamps() {
+        assertEquals(0, ReaderSettings().spreadGapDp)
+        assertEquals(0, ReaderSettings(spreadGapDp = -10).normalized().spreadGapDp)
+        assertEquals(64, ReaderSettings(spreadGapDp = 999).normalized().spreadGapDp)
+        assertEquals(24, ReaderSettings(spreadGapDp = 24).normalized().spreadGapDp)
+    }
+
+    @Test
     fun spreadCountRoundsUp() {
         assertEquals(1, SpreadLayout.count(0))
         assertEquals(1, SpreadLayout.count(1))

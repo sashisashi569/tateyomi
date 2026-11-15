@@ -8,6 +8,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -101,11 +102,14 @@ fun ReaderSpreadView(
     val vertical = layout.settings.vertical
     Box(modifier.background(palette.background)) {
         Row(Modifier.fillMaxSize()) {
+            val gap = Modifier.width(layout.settings.spreadGapDp.dp)
             if (vertical) {
                 SpreadSlot(second, book, layout, fontSpec, palette)
+                Spacer(gap)
                 SpreadSlot(first, book, layout, fontSpec, palette)
             } else {
                 SpreadSlot(first, book, layout, fontSpec, palette)
+                Spacer(gap)
                 SpreadSlot(second, book, layout, fontSpec, palette)
             }
         }

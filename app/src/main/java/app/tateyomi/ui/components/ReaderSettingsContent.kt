@@ -197,6 +197,19 @@ fun ReaderSettingsContent(
             color = palette.muted,
             modifier = Modifier.padding(top = 6.dp),
         )
+        SettingSlider(
+            label = "ページ間余白",
+            value = settings.spreadGapDp,
+            range = ReaderSettings.MIN_SPREAD_GAP..ReaderSettings.MAX_SPREAD_GAP,
+            display = { "${it}dp" },
+            palette = palette,
+            onChange = { onChange(settings.copy(spreadGapDp = it)) },
+        )
+        Text(
+            text = "見開き表示のとき、左右ページの間に空ける余白です。",
+            fontSize = 10.sp,
+            color = palette.muted,
+        )
 
         Spacer(Modifier.height(18.dp))
         SectionLabel("組式", palette)
