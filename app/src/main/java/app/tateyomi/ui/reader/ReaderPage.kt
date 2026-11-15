@@ -23,13 +23,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.tateyomi.data.BlockStyle
-import app.tateyomi.data.FontChoice
 import app.tateyomi.data.ImageBlock
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.TextBlock
 import app.tateyomi.reader.LayoutLine
 import app.tateyomi.reader.PageContent
 import app.tateyomi.reader.ReaderLayout
+import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderTypefaces
 import app.tateyomi.reader.computeReaderMetrics
 import app.tateyomi.reader.needsManualVerticalRotation
@@ -45,6 +45,7 @@ fun ReaderPageView(
     book: LoadedBook,
     layout: ReaderLayout,
     page: Int,
+    fontSpec: ReaderFontSpec,
     palette: ReaderPalette,
     modifier: Modifier = Modifier,
 ) {
@@ -58,6 +59,7 @@ fun ReaderPageView(
                 chapterBlocks = chapter?.blocks.orEmpty(),
                 content = content,
                 settings = settings,
+                fontSpec = fontSpec,
                 palette = palette,
                 pageNumber = page + 1,
                 modifier = modifier,
@@ -81,15 +83,22 @@ private fun ReaderTextPage(
     chapterBlocks: List<app.tateyomi.data.Block>,
     content: PageContent.Text,
     settings: ReaderSettings,
+    fontSpec: ReaderFontSpec,
     palette: ReaderPalette,
     pageNumber: Int,
     modifier: Modifier,
 ) {
     val density = LocalDensity.current
     val marginPx = with(density) { settings.marginDp.dp.toPx() }
-    val paints = remember(settings.font, settings.vertical, palette.text, palette.muted) {
+    val paints = remember(
+        fontSpec.file?.absolutePath,
+        fontSpec.family,
+        settings.vertical,
+        palette.text,
+        palette.muted,
+    ) {
         ReaderPaints(
-            font = settings.font,
+            font = fontSpec,
             vertical = settings.vertical,
             textColor = palette.text.toArgb(),
             mutedColor = palette.muted.toArgb(),
@@ -423,13 +432,13 @@ private fun drawRuby(
 }
 
 private class ReaderPaints(
-    font: FontChoice,
+    font: ReaderFontSpec,
     vertical: Boolean,
     private val textColor: Int,
     private val mutedColor: Int,
 ) {
-    private val normal: Typeface = ReaderTypefaces.forChoice(font, bold = false)
-    private val bold: Typeface = ReaderTypefaces.forChoice(font, bold = true)
+    private val normal: Typeface = ReaderTypefaces.typeface(font, bold = false)
+    private val bold: Typeface = ReaderTypefaces.typeface(font, bold = true)
     private val vertFeature = if (vertical) "vert" else null
 
     val body: Paint = base(normal)

@@ -16,6 +16,14 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 |---|---|
 | ![目次](docs/screenshots/toc.png) | ![設定](docs/screenshots/settings.png) |
 
+| 設定 | 表示設定（フォント選択） |
+|---|---|
+| ![設定](docs/screenshots/settings-home.png) | ![表示設定](docs/screenshots/display-settings.png) |
+
+| フォントマネージャー | アプリ情報 |
+|---|---|
+| ![フォントマネージャー](docs/screenshots/font-manager.png) | ![アプリ情報](docs/screenshots/app-info.png) |
+
 ![読書統計](docs/screenshots/stats.png)
 
 ## 主な機能
@@ -45,7 +53,15 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - 今日 / 累計の読書時間、連続読書日数、読了冊数、読んだ文字数
   - 直近7日間グラフ、本ごとの読書時間と進捗
 - **紙面テーマ**：生成り / 白 / 夜
-- **フォント**：明朝（serif） / ゴシック（sans-serif） / 等幅（monospace）
+- **設定**（本棚右上の歯車から）
+  - **表示設定**：フォントの選択（書体プレビュー付き）と紙面テーマ
+  - **フォントマネージャー**：フォント一覧、TTF / OTF / TTC の追加・削除
+  - **アプリ情報**：バージョン、対応形式、プライバシー、オープンソース
+- **フォント**
+  - 端末の明朝（serif） / ゴシック（sans-serif） / 等幅（monospace）
+  - TTF / OTF / TTC を取り込んで本文に適用（アプリ専用領域にコピー）
+  - 追加フォントは削除可能。使用中のフォントを削除すると明朝へ戻ります
+  - フォントの選択は「設定 > 表示設定」、追加・削除は「設定 > フォントマネージャー」
 
 ## 操作
 
@@ -56,6 +72,7 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 | ヘッダー／フッター | 常時表示（表示切替なし） |
 | 下部バー | 目次、組式設定、ページスライダー |
 | 設定シート | 変更はシートを閉じたときに適用 |
+| 本棚右上の歯車 | 設定（表示設定 / フォントマネージャー / アプリ情報） |
 | 本棚の本 | タップで開く／長押しで削除 |
 
 ## 開発環境
@@ -93,18 +110,22 @@ app/src/main/java/app/tateyomi/
 │   ├── EpubParser.kt       EPUB 2/3 のテキスト・ルビ・画像・目次抽出
 │   ├── AppRepository.kt    取り込み、JSON 永続化、進捗・設定・統計
 │   ├── CoverGenerator.kt   表紙の正規化とプレースホルダー生成
+│   ├── Fonts.kt            フォント定義（端末フォント・追加フォント・有効ID）
+│   ├── FontMetadata.kt     OpenType/TrueType の name テーブルから書体名を取得
 │   ├── Model.kt            書籍・章・ブロック・目次・進捗
 │   ├── Settings.kt         組式設定とプリセット
 │   └── Stats.kt            読書統計
 ├── reader/
 │   ├── ReaderLayout.kt     字数×行数のグリッド組版、禁則処理、ページ割付
-│   ├── ReaderTypefaces.kt  端末フォントのキャッシュ
+│   ├── ReaderFonts.kt      フォントIDから端末ファミリ／フォントファイルを解決
+│   ├── ReaderTypefaces.kt  端末フォント・追加フォントの Typeface キャッシュ
 │   └── ...
 ├── ui/
-│   ├── MainViewModel.kt    画面状態、読書セッション、進捗保存
+│   ├── MainViewModel.kt    画面状態、読書セッション、進捗保存、フォント管理
 │   ├── AppRoot.kt          画面遷移、Snackbar、ライフサイクル
 │   ├── library/            本棚
 │   ├── reader/             Pager、Canvas 描画、目次・設定シート
+│   ├── settings/           設定、表示設定、フォントマネージャー、アプリ情報
 │   ├── stats/              読書統計
 │   └── theme/              Material 3 テーマ、紙面パレット
 └── util/                  時間・文字数・連続読書日数の整形
@@ -132,8 +153,9 @@ app/src/main/java/app/tateyomi/
 
 ```
 library.json                  本棚インデックス
-settings.json                 組式設定・プリセット
+settings.json                 組式設定・プリセット・フォント一覧
 stats.json                    読書統計
+fonts/<uuid>.<ttf|otf|ttc>    追加したフォント
 books/<uuid>/source.epub      取り込んだ EPUB 原本
 books/<uuid>/content.json     抽出済み本文（章・ブロック・ルビ・アンカー）
 books/<uuid>/cover.jpg        正規化した表紙
@@ -142,6 +164,8 @@ books/<uuid>/images/<hash>    本文画像
 
 EPUB は取り込み時にアプリ領域へコピーします。元ファイルを移動・削除しても
 読めます。本を削除すると上記ディレクトリと統計からも削除します。
+追加フォントもアプリ領域へコピーするため、元ファイルを削除しても使用できます。
+フォントファイルが見つからない場合は一覧から除外し、使用中なら明朝へ戻します。
 
 ## テスト
 
@@ -154,6 +178,8 @@ gradle testDebugUnitTest
 - `ReaderLayoutTest`：字数・行数・禁則・ルビ分割・ページ/進捗の往復
 - `ReaderMetricsTest`：行数・行間を保った自動縮小と行ピッチ
 - `VerticalGlyphsTest`：省略記号・ダッシュ類の縦組み回転判定
+- `FontsTest`：端末フォントIDと旧設定の互換、追加フォントの解決・フォールバック
+- `FontMetadataTest`：フォントでないファイルの書体名解析
 - `EpubParserTest`：合成 EPUB（ルビ、画像、名前空間付き OPF、固定レイアウト画像 spine）
 - `FormattingTest`：時間・文字数・連続読書日数
 - `EpubCollectionTest`：手元の EPUB コーパスを一括パース（環境変数があるときだけ実行）
@@ -193,9 +219,11 @@ gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.cl
   自動的に小さくなります。
 - 縦書きの欧文は回転描画のため、字詰めに余白が出ることがあります。
 - Canvas 描画のため、現状は TalkBack による本文読み上げに対応していません。
-- フォントは端末の serif / sans-serif / monospace を使用します。端末に
-  日本語明朝体がない場合は代替フォントになります。専用の縦書きフォントは
-  同梱していません。多くの句読点は OpenType の `vert` を使い、`……` などの
+- フォントは端末の serif / sans-serif / monospace に加え、TTF / OTF / TTC を
+  追加できます。端末に日本語明朝体がない場合は代替フォントになります。専用の
+  縦書きフォントは同梱していません。追加フォントはアプリが読み込める形式である
+  必要があり、壊れたファイルや 64MB を超えるファイルは追加できません。多くの
+  句読点は OpenType の `vert` を使い、`……` などの
   省略記号・ダッシュ・長音・波ダッシュは Latin フォールバックでも正しく
   縦になるよう、フォント機能を切って90度回転するフォールバックを実装しています。
 - 本文のないページ（表紙のみ等）は取り込み時に除外します。画像だけのページは

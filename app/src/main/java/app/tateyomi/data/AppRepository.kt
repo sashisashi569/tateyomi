@@ -1,7 +1,9 @@
 package app.tateyomi.data
 
 import android.content.Context
+import android.graphics.Typeface
 import android.net.Uri
+import android.provider.OpenableColumns
 import android.util.Log
 import java.io.File
 import java.time.LocalDate
@@ -20,6 +22,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.json.Json
 
+private const val MAX_FONT_BYTES = 64L * 1024 * 1024
+
 /**
  * Single source of truth for books, progress, settings and statistics.
  * Everything lives in the app's private files directory; EPUBs are copied on
@@ -36,6 +40,7 @@ class AppRepository(private val context: Context) {
 
     private val rootDir = File(context.filesDir, "tateyomi")
     private val booksDir = File(rootDir, "books")
+    private val fontsDir = File(rootDir, "fonts")
     private val tempDir = File(rootDir, "tmp")
     private val libraryFile = File(rootDir, "library.json")
     private val settingsFile = File(rootDir, "settings.json")
@@ -58,6 +63,7 @@ class AppRepository(private val context: Context) {
 
     init {
         booksDir.mkdirs()
+        fontsDir.mkdirs()
         tempDir.mkdirs()
         scope.launch { load() }
     }
@@ -71,9 +77,10 @@ class AppRepository(private val context: Context) {
         }
 
         val loadedSettings = readJson(settingsFile, AppSettings.serializer()) ?: AppSettings()
-        _settings.value = loadedSettings.copy(
-            reader = loadedSettings.reader.normalized(),
-            presets = loadedSettings.presets.map { it.copy(settings = it.settings.normalized()) },
+        val sanitized = sanitizeFonts(loadedSettings)
+        _settings.value = sanitized.copy(
+            reader = sanitized.reader.normalized(),
+            presets = sanitized.presets.map { it.copy(settings = it.settings.normalized()) },
         )
 
         _stats.value = readJson(statsFile, ReadingStats.serializer()) ?: ReadingStats()
@@ -89,6 +96,136 @@ class AppRepository(private val context: Context) {
         book.coverFile?.let { File(bookDir(book.id), it).takeIf(File::isFile) }
 
     fun imageFile(bookId: String, name: String): File = File(bookDir(bookId), "images/$name")
+
+    fun fontFile(fontId: String): File? {
+        val font = _settings.value.fonts.firstOrNull { it.id == fontId } ?: return null
+        val name = font.fileName ?: return null
+        return File(fontsDir, name).takeIf(File::isFile)
+    }
+
+    suspend fun addFont(uri: Uri): ManagedFont = withContext(Dispatchers.IO) {
+        val uuid = UUID.randomUUID().toString()
+        val id = "custom:$uuid"
+        val temp = File(tempDir, "$uuid.font")
+        try {
+            copyUri(uri, temp)
+            if (temp.length() > MAX_FONT_BYTES) {
+                throw FontException("フォントファイルが大きすぎます（上限 64MB）")
+            }
+            val extension = sniffFontExtension(temp)
+                ?: throw FontException("TTF / OTF / TTC フォントではありません")
+            try {
+                Typeface.createFromFile(temp)
+            } catch (_: Exception) {
+                throw FontException("フォントを読み込めませんでした")
+            }
+            val displayName = queryDisplayName(uri)
+                ?.substringBeforeLast('.')
+                ?.replace(Regex("\\s+"), " ")
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+            val familyName = FontMetadata.familyName(temp)
+                ?.replace(Regex("\\s+"), " ")
+                ?.trim()
+                ?.takeIf { it.isNotEmpty() }
+                ?.take(80)
+            val name = familyName ?: displayName ?: "追加フォント"
+
+            fontsDir.mkdirs()
+            val fileName = "$uuid.$extension"
+            val target = File(fontsDir, fileName)
+            temp.copyTo(target, overwrite = true)
+            val font = ManagedFont(
+                id = id,
+                name = name,
+                fileName = fileName,
+                builtIn = false,
+            )
+            _settings.update { current -> current.copy(fonts = current.fonts + font) }
+            persistSettings()
+            font
+        } catch (e: FontException) {
+            throw e
+        } catch (e: Exception) {
+            throw FontException(e.message ?: "フォントを追加できませんでした")
+        } finally {
+            temp.delete()
+        }
+    }
+
+    suspend fun deleteFont(id: String) {
+        withContext(Dispatchers.IO) {
+            val font = _settings.value.fonts.firstOrNull { it.id == id } ?: return@withContext
+            font.fileName?.let { File(fontsDir, it).delete() }
+            _settings.update { current ->
+                fun clean(reader: ReaderSettings): ReaderSettings =
+                    if (reader.fontId == id) {
+                        reader.copy(fontId = BuiltInFonts.MINCHO_ID, font = FontChoice.MINCHO)
+                    } else {
+                        reader
+                    }
+                current.copy(
+                    fonts = current.fonts.filterNot { it.id == id },
+                    reader = clean(current.reader),
+                    presets = current.presets.map { preset ->
+                        preset.copy(settings = clean(preset.settings))
+                    },
+                )
+            }
+            persistSettings()
+        }
+    }
+
+    private fun sanitizeFonts(settings: AppSettings): AppSettings {
+        val validCustom = settings.fonts.filter { font ->
+            font.fileName?.let { File(fontsDir, it).isFile } == true
+        }
+        val validIds = BuiltInFonts.all.map { it.id }.toSet() + validCustom.map { it.id }
+        fun clean(reader: ReaderSettings): ReaderSettings {
+            val id = reader.fontId
+            return if (id != null && id !in validIds) {
+                reader.copy(fontId = null, font = FontChoice.MINCHO)
+            } else {
+                reader
+            }
+        }
+        return settings.copy(
+            fonts = validCustom,
+            reader = clean(settings.reader),
+            presets = settings.presets.map { preset ->
+                preset.copy(settings = clean(preset.settings))
+            },
+        )
+    }
+
+    private fun queryDisplayName(uri: Uri): String? = try {
+        context.contentResolver.query(
+            uri,
+            arrayOf(OpenableColumns.DISPLAY_NAME),
+            null,
+            null,
+            null,
+        )?.use { cursor ->
+            if (cursor.moveToFirst()) cursor.getString(0) else null
+        }
+    } catch (_: Exception) {
+        uri.lastPathSegment
+    }
+
+    private fun sniffFontExtension(file: File): String? {
+        if (!file.isFile || file.length() < 4) return null
+        val header = ByteArray(4)
+        file.inputStream().use { input -> input.read(header) }
+        return when {
+            String(header, Charsets.ISO_8859_1) == "OTTO" -> "otf"
+            String(header, Charsets.ISO_8859_1) == "ttcf" -> "ttc"
+            String(header, Charsets.ISO_8859_1) == "true" -> "ttf"
+            String(header, Charsets.ISO_8859_1) == "typ1" -> "ttf"
+            header[0] == 0.toByte() && header[1] == 1.toByte() &&
+                header[2] == 0.toByte() && header[3] == 0.toByte() -> "ttf"
+            else -> null
+        }
+    }
 
     suspend fun importEpub(uri: Uri): BookSummary = withContext(Dispatchers.IO) {
         val id = UUID.randomUUID().toString()

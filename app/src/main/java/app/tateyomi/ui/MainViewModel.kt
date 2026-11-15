@@ -33,6 +33,7 @@ sealed interface Screen {
     data object Library : Screen
     data class Reader(val bookId: String) : Screen
     data object Stats : Screen
+    data object Settings : Screen
 }
 
 data class LoadedBook(
@@ -72,6 +73,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _importState = MutableStateFlow<ImportUiState?>(null)
     val importState: StateFlow<ImportUiState?> = _importState.asStateFlow()
+
+    private val _fontBusy = MutableStateFlow(false)
+    val fontBusy: StateFlow<Boolean> = _fontBusy.asStateFlow()
 
     private val _messages = MutableSharedFlow<String>(extraBufferCapacity = 8)
     val messages: SharedFlow<String> = _messages.asSharedFlow()
@@ -138,6 +142,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         when (_screen.value) {
             is Screen.Reader -> closeBook()
             is Screen.Stats -> _screen.value = Screen.Library
+            is Screen.Settings -> _screen.value = Screen.Library
             is Screen.Library -> Unit
         }
     }
@@ -146,7 +151,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _screen.value = Screen.Stats
     }
 
+    fun openSettings() {
+        _screen.value = Screen.Settings
+    }
+
     fun coverFile(book: BookSummary): File? = repository.coverFile(book)
+
+    fun fontFile(fontId: String): File? = repository.fontFile(fontId)
+
+    fun addFont(uri: Uri) {
+        if (_fontBusy.value) return
+        viewModelScope.launch {
+            _fontBusy.value = true
+            try {
+                val font = withContext(Dispatchers.IO) { repository.addFont(uri) }
+                _messages.tryEmit("「${font.name}」を追加しました。表示設定から選択できます")
+            } catch (e: Exception) {
+                _messages.tryEmit(e.message ?: "フォントを追加できませんでした")
+            } finally {
+                _fontBusy.value = false
+            }
+        }
+    }
+
+    fun deleteFont(id: String) {
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) { repository.deleteFont(id) }
+                _messages.tryEmit("フォントを削除しました")
+            } catch (e: Exception) {
+                _messages.tryEmit(e.message ?: "フォントを削除できませんでした")
+            }
+        }
+    }
 
     fun importBooks(uris: List<Uri>) {
         if (uris.isEmpty() || _importState.value != null) return

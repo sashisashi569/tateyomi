@@ -63,7 +63,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.tateyomi.data.BuiltInPresets
-import app.tateyomi.data.FontChoice
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.ReaderTheme
@@ -259,6 +258,12 @@ fun ReaderSettingsSheet(
                         fontSize = 10.sp,
                         color = palette.muted,
                     )
+                    Spacer(Modifier.height(10.dp))
+                    Text(
+                        text = "フォントはホームの「設定 > 表示設定」で変更できます",
+                        fontSize = 10.sp,
+                        color = palette.muted,
+                    )
                     Spacer(Modifier.height(16.dp))
 
                 SectionLabel("組方向", palette)
@@ -349,28 +354,6 @@ fun ReaderSettingsSheet(
                 )
 
                 Spacer(Modifier.height(14.dp))
-                SectionLabel("フォント", palette)
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    items(FontChoice.entries) { font ->
-                        FilterChip(
-                            selected = draft.font == font,
-                            onClick = { draft = draft.copy(font = font) },
-                            label = {
-                                Text(
-                                    text = font.label(),
-                                    fontFamily = font.previewFamily(),
-                                    fontSize = 13.sp,
-                                )
-                            },
-                            colors = FilterChipDefaults.filterChipColors(
-                                selectedContainerColor = palette.accent.copy(alpha = 0.14f),
-                                selectedLabelColor = palette.accent,
-                            ),
-                        )
-                    }
-                }
-
-                Spacer(Modifier.height(18.dp))
                 SectionLabel("紙面", palette)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ReaderTheme.entries.forEach { theme ->
@@ -583,18 +566,6 @@ private fun SettingSliderFloat(
             steps = 0,
         )
     }
-}
-
-private fun FontChoice.label(): String = when (this) {
-    FontChoice.MINCHO -> "明朝"
-    FontChoice.GOTHIC -> "ゴシック"
-    FontChoice.MONOSPACE -> "等幅"
-}
-
-private fun FontChoice.previewFamily(): FontFamily = when (this) {
-    FontChoice.MINCHO -> FontFamily.Serif
-    FontChoice.GOTHIC -> FontFamily.SansSerif
-    FontChoice.MONOSPACE -> FontFamily.Monospace
 }
 
 private fun ReaderTheme.label(): String = when (this) {

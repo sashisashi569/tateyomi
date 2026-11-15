@@ -34,6 +34,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val readerState by viewModel.readerState.collectAsStateWithLifecycle()
     val importState by viewModel.importState.collectAsStateWithLifecycle()
+    val fontBusy by viewModel.fontBusy.collectAsStateWithLifecycle()
     val ready by viewModel.ready.collectAsStateWithLifecycle()
 
     val snackbar = remember { SnackbarHostState() }
@@ -70,6 +71,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                 onImport = viewModel::importBooks,
                 onOpenBook = viewModel::openBook,
                 onOpenStats = viewModel::openStats,
+                onOpenSettings = viewModel::openSettings,
                 onDeleteBook = viewModel::deleteBook,
             )
             is Screen.Reader -> ReaderScreen(
@@ -81,6 +83,15 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                 books = library,
                 stats = stats,
                 onBack = viewModel::back,
+            )
+            is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
+                settings = settings,
+                fontBusy = fontBusy,
+                fontFileFor = viewModel::fontFile,
+                onBack = viewModel::back,
+                onReaderSettingsChange = viewModel::updateReaderSettings,
+                onAddFont = viewModel::addFont,
+                onDeleteFont = viewModel::deleteFont,
             )
         }
 

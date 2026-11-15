@@ -35,6 +35,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowForward
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.AutoStories
 import androidx.compose.material.icons.outlined.BarChart
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -80,6 +81,7 @@ fun LibraryScreen(
     onImport: (List<android.net.Uri>) -> Unit,
     onOpenBook: (String) -> Unit,
     onOpenStats: () -> Unit,
+    onOpenSettings: () -> Unit,
     onDeleteBook: (String) -> Unit,
 ) {
     val importLauncher = rememberLauncherForActivityResult(
@@ -122,6 +124,7 @@ fun LibraryScreen(
                     LibraryHeader(
                         onImport = { importLauncher.launch(arrayOf("*/*")) },
                         onOpenStats = onOpenStats,
+                        onOpenSettings = onOpenSettings,
                     )
                 }
                 EmptyLibrary(
@@ -144,6 +147,7 @@ fun LibraryScreen(
                     LibraryHeader(
                         onImport = { importLauncher.launch(arrayOf("*/*")) },
                         onOpenStats = onOpenStats,
+                        onOpenSettings = onOpenSettings,
                     )
                 }
                 if (recent != null) {
@@ -232,6 +236,7 @@ fun LibraryScreen(
 private fun LibraryHeader(
     onImport: () -> Unit,
     onOpenStats: () -> Unit,
+    onOpenSettings: () -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(top = 12.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -266,6 +271,16 @@ private fun LibraryHeader(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            FilledTonalIconButton(
+                onClick = onOpenSettings,
+                colors = androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.primary,
+                ),
+            ) {
+                Icon(Icons.Outlined.Settings, contentDescription = "設定")
+            }
+            Spacer(Modifier.width(6.dp))
             FilledTonalIconButton(
                 onClick = onOpenStats,
                 colors = androidx.compose.material3.IconButtonDefaults.filledTonalIconButtonColors(

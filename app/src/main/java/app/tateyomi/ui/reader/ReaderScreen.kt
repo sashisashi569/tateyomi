@@ -76,9 +76,12 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
+import app.tateyomi.data.effectiveFontId
 import app.tateyomi.data.ReadingProgress
+import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.reader.ReaderLayoutEngine
+import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.reader.computeReaderMetrics
 import app.tateyomi.ui.LoadedBook
 import app.tateyomi.ui.MainViewModel
@@ -109,13 +112,21 @@ fun ReaderScreen(
             onRetry = { viewModel.retryOpen(state.bookId) },
             onBack = viewModel::closeBook,
         )
-        is ReaderUiState.Ready -> ReaderPager(
-            viewModel = viewModel,
-            book = state.book,
-            settings = appSettings.reader,
-            presets = appSettings.presets,
-            palette = palette,
-        )
+        is ReaderUiState.Ready -> {
+            val readerSettings = appSettings.reader
+            val fontId = readerSettings.effectiveFontId()
+            val fontSpec = remember(fontId, appSettings.fonts) {
+                resolveFontSpec(fontId, appSettings.fonts, viewModel::fontFile)
+            }
+            ReaderPager(
+                viewModel = viewModel,
+                book = state.book,
+                settings = readerSettings,
+                fontSpec = fontSpec,
+                presets = appSettings.presets,
+                palette = palette,
+            )
+        }
     }
 }
 
@@ -124,6 +135,7 @@ private fun ReaderPager(
     viewModel: MainViewModel,
     book: LoadedBook,
     settings: ReaderSettings,
+    fontSpec: ReaderFontSpec,
     presets: List<ReaderPreset>,
     palette: ReaderPalette,
 ) {
@@ -266,6 +278,7 @@ private fun ReaderPager(
                             book = book,
                             layout = currentLayout,
                             page = page,
+                            fontSpec = fontSpec,
                             palette = palette,
                             modifier = Modifier.fillMaxSize(),
                         )

@@ -32,6 +32,7 @@ data class ReaderSettings(
     val indent: Int = 1,
     val marginDp: Int = 20,
     val font: FontChoice = FontChoice.MINCHO,
+    val fontId: String? = null,
     val theme: ReaderTheme = ReaderTheme.PAPER,
 ) {
     fun normalized(): ReaderSettings = copy(
@@ -108,6 +109,7 @@ data class ReaderPreset(
 data class AppSettings(
     val reader: ReaderSettings = ReaderSettings.Default,
     val presets: List<ReaderPreset> = emptyList(),
+    val fonts: List<ManagedFont> = emptyList(),
 )
 
 data class BuiltInPreset(
