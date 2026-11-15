@@ -5,7 +5,6 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -32,7 +31,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.Add
-import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.DeleteOutline
 import androidx.compose.material.icons.outlined.FontDownload
 import androidx.compose.material.icons.outlined.Info
@@ -41,7 +39,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -57,7 +54,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -68,12 +65,13 @@ import androidx.activity.compose.BackHandler
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.BuiltInFonts
 import app.tateyomi.data.ManagedFont
-import app.tateyomi.data.ReaderTheme
+import app.tateyomi.data.ReaderPreset
+import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.effectiveFontId
-import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.ui.components.FontSample
-import app.tateyomi.ui.theme.readerPalette
+import app.tateyomi.ui.components.ReaderSettingsContent
+import app.tateyomi.ui.theme.ReaderPalette
 import java.io.File
 import java.util.Locale
 
@@ -89,6 +87,8 @@ fun SettingsScreen(
     fontFileFor: (String) -> File?,
     onBack: () -> Unit,
     onReaderSettingsChange: (app.tateyomi.data.ReaderSettings) -> Unit,
+    onSavePreset: (String, app.tateyomi.data.ReaderSettings) -> Unit,
+    onDeletePreset: (app.tateyomi.data.ReaderPreset) -> Unit,
     onAddFont: (Uri) -> Unit,
     onDeleteFont: (String) -> Unit,
 ) {
@@ -121,6 +121,8 @@ fun SettingsScreen(
                 settings = settings,
                 fontFileFor = fontFileFor,
                 onReaderSettingsChange = onReaderSettingsChange,
+                onSavePreset = onSavePreset,
+                onDeletePreset = onDeletePreset,
             )
             PAGE_FONTS -> FontManagerPage(
                 settings = settings,
@@ -189,7 +191,7 @@ private fun SettingsHome(
         SettingsMenuRow(
             icon = { Icon(Icons.Outlined.Palette, contentDescription = null) },
             title = "表示設定",
-            subtitle = "フォントと紙面テーマ",
+            subtitle = "組式・フォント・紙面テーマ",
             onClick = onOpenDisplay,
         )
         Spacer(Modifier.height(12.dp))
@@ -280,164 +282,49 @@ private fun SettingsMenuRow(
 private fun DisplaySettingsPage(
     settings: AppSettings,
     fontFileFor: (String) -> File?,
-    onReaderSettingsChange: (app.tateyomi.data.ReaderSettings) -> Unit,
+    onReaderSettingsChange: (ReaderSettings) -> Unit,
+    onSavePreset: (String, ReaderSettings) -> Unit,
+    onDeletePreset: (ReaderPreset) -> Unit,
 ) {
-    val reader = settings.reader
-    val selectedFontId = reader.effectiveFontId()
-    val fonts = BuiltInFonts.all + settings.fonts
-
-    fun selectFont(font: ManagedFont) {
-        val builtInChoice = BuiltInFonts.choiceFor(font.id)
-        onReaderSettingsChange(
-            reader.copy(
-                fontId = font.id,
-                font = builtInChoice ?: reader.font,
-            ),
-        )
-    }
-
-    LazyColumn(
-        modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+    val palette = materialReaderPalette()
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        item {
-            Column(Modifier.padding(top = 8.dp, bottom = 6.dp)) {
-                Text(
-                    text = "読書画面に適用されます",
-                    fontSize = 12.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        item { SectionTitle("フォント") }
-        items(fonts, key = { it.id }) { font ->
-            val selected = font.id == selectedFontId
-            val spec = remember(font.id, settings.fonts) {
-                resolveFontSpec(font.id, settings.fonts, fontFileFor)
-            }
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable { selectFont(font) },
-                shape = RoundedCornerShape(16.dp),
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primary.copy(alpha = 0.08f)
-                } else {
-                    MaterialTheme.colorScheme.surface
-                },
-                tonalElevation = 1.dp,
-            ) {
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 14.dp, vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = font.name,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.SemiBold,
-                            )
-                            Spacer(Modifier.width(8.dp))
-                            Badge(if (font.builtIn) "端末" else "追加")
-                        }
-                        FontSample(
-                            font = spec,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(28.dp)
-                                .padding(top = 2.dp),
-                            fontSize = 16.sp,
-                        )
-                    }
-                    if (selected) {
-                        Icon(
-                            Icons.Outlined.Check,
-                            contentDescription = "選択中",
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                }
-            }
-        }
-        item {
-            Text(
-                text = "フォントの追加・削除は「設定 > フォントマネージャー」から行えます。",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 2.dp, bottom = 8.dp),
-            )
-        }
-
-        item { SectionTitle("紙面テーマ") }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                ReaderTheme.entries.forEach { theme ->
-                    ThemeChoice(
-                        theme = theme,
-                        selected = reader.theme == theme,
-                        modifier = Modifier.weight(1f),
-                        onClick = {
-                            onReaderSettingsChange(reader.copy(theme = theme))
-                        },
-                    )
-                }
-            }
-        }
-        item {
-            Text(
-                text = "読書画面の背景色と文字色を変更します。",
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(top = 6.dp, bottom = 24.dp),
-            )
-        }
+        Text(
+            text = "読書画面に適用されます。リーダーの「表示」シートと同じ設定です。",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 8.dp, bottom = 14.dp),
+        )
+        ReaderSettingsContent(
+            settings = settings.reader,
+            fonts = settings.fonts,
+            fontFileFor = fontFileFor,
+            presets = settings.presets,
+            palette = palette,
+            onChange = onReaderSettingsChange,
+            onSavePreset = onSavePreset,
+            onDeletePreset = onDeletePreset,
+        )
+        Spacer(Modifier.height(28.dp))
     }
 }
 
 @Composable
-private fun ThemeChoice(
-    theme: ReaderTheme,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    val palette = readerPalette(theme)
-    val shape = RoundedCornerShape(14.dp)
-    Surface(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .then(
-                if (selected) {
-                    Modifier.border(2.dp, MaterialTheme.colorScheme.primary, shape)
-                } else {
-                    Modifier.border(1.dp, MaterialTheme.colorScheme.outlineVariant, shape)
-                },
-            ),
-        shape = shape,
-        color = palette.background,
-    ) {
-        Column(
-            Modifier.padding(horizontal = 10.dp, vertical = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text(
-                text = "あ",
-                color = palette.text,
-                fontFamily = FontFamily.Serif,
-                fontSize = 26.sp,
-            )
-            Text(
-                text = theme.themeLabel(),
-                color = palette.muted,
-                fontSize = 10.sp,
-            )
-        }
-    }
+private fun materialReaderPalette(): ReaderPalette {
+    val scheme = MaterialTheme.colorScheme
+    return ReaderPalette(
+        background = scheme.background,
+        surface = scheme.surface,
+        text = scheme.onSurface,
+        muted = scheme.onSurfaceVariant,
+        accent = scheme.primary,
+        rule = scheme.outlineVariant,
+        isDark = scheme.background.luminance() < 0.5f,
+    )
 }
 
 @Composable
@@ -825,12 +712,6 @@ private fun Badge(text: String, accent: Boolean = false) {
             modifier = Modifier.padding(horizontal = 5.dp, vertical = 2.dp),
         )
     }
-}
-
-private fun ReaderTheme.themeLabel(): String = when (this) {
-    ReaderTheme.PAPER -> "生成り"
-    ReaderTheme.WHITE -> "白"
-    ReaderTheme.DARK -> "夜"
 }
 
 private fun formatFileSize(bytes: Long): String {

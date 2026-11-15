@@ -74,6 +74,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tateyomi.data.AppSettings
+import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.effectiveFontId
@@ -123,6 +124,7 @@ fun ReaderScreen(
                 book = state.book,
                 settings = readerSettings,
                 fontSpec = fontSpec,
+                fonts = appSettings.fonts,
                 presets = appSettings.presets,
                 palette = palette,
             )
@@ -136,6 +138,7 @@ private fun ReaderPager(
     book: LoadedBook,
     settings: ReaderSettings,
     fontSpec: ReaderFontSpec,
+    fonts: List<ManagedFont>,
     presets: List<ReaderPreset>,
     palette: ReaderPalette,
 ) {
@@ -333,6 +336,8 @@ private fun ReaderPager(
     if (showSettings) {
         ReaderSettingsSheet(
             settings = settings,
+            fonts = fonts,
+            fontFileFor = viewModel::fontFile,
             presets = presets,
             palette = palette,
             onApply = viewModel::updateReaderSettings,
@@ -472,7 +477,7 @@ private fun ReaderBottomBar(
                 ) {
                     Icon(Icons.Outlined.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(6.dp))
-                    Text("組式", fontSize = 13.sp)
+                    Text("表示", fontSize = 13.sp)
                 }
                 Spacer(Modifier.weight(1f))
                 if (page >= totalPages - 1) {

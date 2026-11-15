@@ -90,6 +90,8 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                 fontFileFor = viewModel::fontFile,
                 onBack = viewModel::back,
                 onReaderSettingsChange = viewModel::updateReaderSettings,
+                onSavePreset = viewModel::savePreset,
+                onDeletePreset = viewModel::deletePreset,
                 onAddFont = viewModel::addFont,
                 onDeleteFont = viewModel::deleteFont,
             )
