@@ -102,13 +102,18 @@ gradle assembleRelease      # 署名なし release APK（R8 有効）
 
 `direnv` を使う場合は `.envrc` の `use flake` を許可してください。
 
+バージョンは `gradle.properties` の `tateyomi.versionName` で管理します。
+`b`（機能追加・変更）と `c`（修正）の増やし方、20を超えたときの繰り上げは
+[VERSIONING.md](VERSIONING.md) を参照してください。更新は
+`./scripts/bump-version.sh feature|fix` で行えます。
+
 ### 実機・エミュレータへのインストール
 
 ```bash
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-1.0.0-debugsigned.apk`
+ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-1.1.0-debugsigned.apk`
 に生成しています（ローカルの debug keystore で署名したテスト用。ストア配布用
 ではありません）。APK などのビルド成果物は Git 管理外です。
 この APK に EPUB は同梱されていません。本棚の「EPUBを追加」から取り込んでください。

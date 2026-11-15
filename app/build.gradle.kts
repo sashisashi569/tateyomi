@@ -5,6 +5,28 @@ plugins {
     id("org.jetbrains.kotlin.plugin.serialization")
 }
 
+val appVersionName = providers.gradleProperty("tateyomi.versionName").orNull
+    ?: error("tateyomi.versionName is missing from gradle.properties")
+val versionParts = appVersionName.split(".").map { part ->
+    part.toIntOrNull()
+        ?: error("Invalid tateyomi.versionName '$appVersionName': expected a.b.c")
+}
+check(versionParts.size == 3) {
+    "Invalid tateyomi.versionName '$appVersionName': expected a.b.c"
+}
+val (versionMajor, versionMinor, versionPatch) = versionParts
+check(versionMajor >= 1) {
+    "Invalid tateyomi.versionName '$appVersionName': a must be at least 1"
+}
+check(versionMinor in 0..20) {
+    "Invalid tateyomi.versionName '$appVersionName': b must be 0..20 (21 carries to a)"
+}
+check(versionPatch in 0..20) {
+    "Invalid tateyomi.versionName '$appVersionName': c must be 0..20 (21 carries to b)"
+}
+// b and c are base-21 digits, so the ordering stays correct across carries.
+val appVersionCode = versionMajor * 21 * 21 + versionMinor * 21 + versionPatch
+
 android {
     namespace = "app.tateyomi"
     compileSdk = 35
@@ -13,8 +35,8 @@ android {
         applicationId = "app.tateyomi"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables { useSupportLibrary = true }
