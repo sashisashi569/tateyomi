@@ -128,6 +128,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                         onReaderSettingsChange = viewModel::updateReaderSettings,
                         onSavePreset = viewModel::savePreset,
                         onDeletePreset = viewModel::deletePreset,
+                        onExportPreset = viewModel::exportPreset,
                         onAppearanceChange = viewModel::updateAppearance,
                         onAddFont = viewModel::addFont,
                         onDeleteFont = viewModel::deleteFont,

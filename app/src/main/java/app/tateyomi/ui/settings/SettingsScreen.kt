@@ -103,6 +103,7 @@ fun SettingsScreen(
     onReaderSettingsChange: (app.tateyomi.data.ReaderSettings) -> Unit,
     onSavePreset: (String, app.tateyomi.data.ReaderSettings) -> Unit,
     onDeletePreset: (app.tateyomi.data.ReaderPreset) -> Unit,
+    onExportPreset: (app.tateyomi.data.ReaderPreset, Uri) -> Unit,
     onAppearanceChange: (AppearanceSettings) -> Unit,
     onAddFont: (Uri) -> Unit,
     onDeleteFont: (String) -> Unit,
@@ -141,6 +142,7 @@ fun SettingsScreen(
                 onReaderSettingsChange = onReaderSettingsChange,
                 onSavePreset = onSavePreset,
                 onDeletePreset = onDeletePreset,
+                onExportPreset = onExportPreset,
             )
             PAGE_FONTS -> FontManagerPage(
                 settings = settings,
@@ -398,6 +400,7 @@ private fun DisplaySettingsPage(
     onReaderSettingsChange: (ReaderSettings) -> Unit,
     onSavePreset: (String, ReaderSettings) -> Unit,
     onDeletePreset: (ReaderPreset) -> Unit,
+    onExportPreset: (ReaderPreset, Uri) -> Unit,
 ) {
     val palette = materialReaderPalette()
     Column(
@@ -421,6 +424,7 @@ private fun DisplaySettingsPage(
             onChange = onReaderSettingsChange,
             onSavePreset = onSavePreset,
             onDeletePreset = onDeletePreset,
+            onExportPreset = onExportPreset,
         )
         Spacer(Modifier.height(28.dp))
     }

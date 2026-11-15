@@ -86,6 +86,7 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - **フォントマネージャー**：フォント一覧、TTF / OTF / TTC の追加・削除
   - **アプリ情報**：バージョン、対応形式、プライバシー、オープンソース
   - **バックアップ**：プリセットと読書統計を1つのJSONに書き出し／読み込み
+    - 各カスタムプリセットの共有ボタンから、プリセット単体のJSONも書き出し可能
     - 読み込み時、プリセットは同名を上書き、統計は現在値と合算
     - 同名プリセットの保存時は上書き確認を表示し、重複保存を防止
 - **フォント**
@@ -134,7 +135,7 @@ gradle assembleRelease      # 署名なし release APK（R8 有効）
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.4-debugsigned.apk`
+ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.5-debugsigned.apk`
 に生成しています（ローカルの debug keystore で署名したテスト用。ストア配布用
 ではありません）。APK などのビルド成果物は Git 管理外です。
 この APK に EPUB は同梱されていません。本棚の「EPUBを追加」から取り込んでください。

@@ -1,5 +1,8 @@
 package app.tateyomi.ui.components
 
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -24,6 +27,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Refresh
+import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -89,11 +93,20 @@ fun ReaderSettingsContent(
     onChange: (ReaderSettings) -> Unit,
     onSavePreset: (String, ReaderSettings) -> Unit,
     onDeletePreset: (ReaderPreset) -> Unit,
+    onExportPreset: (ReaderPreset, Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var showFontDialog by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var pendingOverwrite by remember { mutableStateOf<String?>(null) }
+    var pendingExportPreset by remember { mutableStateOf<ReaderPreset?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+    ) { uri ->
+        val preset = pendingExportPreset
+        pendingExportPreset = null
+        if (uri != null && preset != null) onExportPreset(preset, uri)
+    }
     val fontId = settings.effectiveFontId()
     val allFonts = remember(fonts) { BuiltInFonts.all + fonts }
 
@@ -344,14 +357,28 @@ fun ReaderSettingsContent(
                         onClick = { onChange(preset.settings) },
                         label = { Text(preset.name, fontSize = 13.sp) },
                         trailingIcon = {
-                            Icon(
-                                Icons.Outlined.Close,
-                                contentDescription = "プリセットを削除",
-                                tint = palette.muted,
-                                modifier = Modifier
-                                    .size(14.dp)
-                                    .clickable { onDeletePreset(preset) },
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    Icons.Outlined.Share,
+                                    contentDescription = "プリセットを書き出す",
+                                    tint = palette.muted,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable {
+                                            pendingExportPreset = preset
+                                            exportLauncher.launch(presetExportFileName(preset))
+                                        },
+                                )
+                                Spacer(Modifier.width(4.dp))
+                                Icon(
+                                    Icons.Outlined.Close,
+                                    contentDescription = "プリセットを削除",
+                                    tint = palette.muted,
+                                    modifier = Modifier
+                                        .size(14.dp)
+                                        .clickable { onDeletePreset(preset) },
+                                )
+                            }
                         },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = palette.accent.copy(alpha = 0.14f),
@@ -744,4 +771,13 @@ private fun SpreadMode.label(): String = when (this) {
     SpreadMode.AUTO -> "自動"
     SpreadMode.SINGLE -> "単ページ"
     SpreadMode.SPREAD -> "見開き"
+}
+
+private fun presetExportFileName(preset: ReaderPreset): String {
+    val safe = preset.name
+        .replace(Regex("""[\\/:*?"<>|\s]+"""), "_")
+        .trim('_')
+        .take(40)
+        .ifBlank { "preset" }
+    return "tateyomi-preset-$safe.json"
 }

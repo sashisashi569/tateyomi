@@ -181,6 +181,7 @@ fun ReaderSettingsSheet(
     onApply: (ReaderSettings) -> Unit,
     onSavePreset: (String, ReaderSettings) -> Unit,
     onDeletePreset: (ReaderPreset) -> Unit,
+    onExportPreset: (ReaderPreset, android.net.Uri) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -235,6 +236,7 @@ fun ReaderSettingsSheet(
                     onChange = { draft = it },
                     onSavePreset = onSavePreset,
                     onDeletePreset = onDeletePreset,
+                    onExportPreset = onExportPreset,
                 )
                 Spacer(Modifier.height(24.dp))
             }

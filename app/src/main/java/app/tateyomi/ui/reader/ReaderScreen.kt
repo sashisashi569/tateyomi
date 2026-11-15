@@ -476,6 +476,7 @@ private fun ReaderPager(
             onApply = viewModel::updateReaderSettings,
             onSavePreset = viewModel::savePreset,
             onDeletePreset = viewModel::deletePreset,
+            onExportPreset = viewModel::exportPreset,
             onDismiss = { showSettings = false },
         )
     }

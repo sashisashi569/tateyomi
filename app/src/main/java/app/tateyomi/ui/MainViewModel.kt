@@ -211,6 +211,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun exportPreset(preset: ReaderPreset, uri: Uri) {
+        if (_backupBusy.value) return
+        viewModelScope.launch {
+            _backupBusy.value = true
+            try {
+                val backup = BackupFile(
+                    exportedAt = System.currentTimeMillis(),
+                    presets = listOf(preset),
+                    stats = ReadingStats(),
+                )
+                val text = BackupJson.encodeToString(BackupFile.serializer(), backup)
+                withContext(Dispatchers.IO) {
+                    val output = getApplication<Application>().contentResolver
+                        .openOutputStream(uri)
+                        ?: error("ファイルを開けませんでした")
+                    output.use { it.write(text.toByteArray(Charsets.UTF_8)) }
+                }
+                _messages.tryEmit("プリセット「${preset.name}」を書き出しました")
+            } catch (e: Exception) {
+                _messages.tryEmit(e.message ?: "プリセットを書き出せませんでした")
+            } finally {
+                _backupBusy.value = false
+            }
+        }
+    }
+
     fun importBackup(uri: Uri) {
         if (_backupBusy.value) return
         viewModelScope.launch {
