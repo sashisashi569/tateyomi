@@ -76,6 +76,19 @@ private val DarkColors = darkColorScheme(
     onError = Color(0xFF5F150B),
 )
 
+private val AmoledDarkColors = DarkColors.copy(
+    background = Color.Black,
+    surface = Color(0xFF080808),
+    surfaceVariant = Color(0xFF151515),
+    surfaceContainerLowest = Color.Black,
+    surfaceContainerLow = Color(0xFF080808),
+    surfaceContainer = Color(0xFF0D0D0D),
+    surfaceContainerHigh = Color(0xFF141414),
+    surfaceContainerHighest = Color(0xFF1A1A1A),
+    outline = Color(0xFF3E3A32),
+    outlineVariant = Color(0xFF2A2823),
+)
+
 private val AppTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = FontFamily.Serif,
@@ -183,10 +196,16 @@ private val AppShapes = Shapes(
 @Composable
 fun TateyomiTheme(
     darkTheme: Boolean = androidx.compose.foundation.isSystemInDarkTheme(),
+    amoled: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    val colorScheme = when {
+        !darkTheme -> LightColors
+        amoled -> AmoledDarkColors
+        else -> DarkColors
+    }
     MaterialTheme(
-        colorScheme = if (darkTheme) DarkColors else LightColors,
+        colorScheme = colorScheme,
         typography = AppTypography,
         shapes = AppShapes,
         content = content,

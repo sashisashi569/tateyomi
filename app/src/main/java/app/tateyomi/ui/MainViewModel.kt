@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.tateyomi.TateyomiApp
 import app.tateyomi.data.AppRepository
 import app.tateyomi.data.AppSettings
+import app.tateyomi.data.AppearanceSettings
 import app.tateyomi.data.BookContent
 import app.tateyomi.data.BookSummary
 import app.tateyomi.data.EpubException
@@ -220,6 +221,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateReaderSettings(reader: ReaderSettings) {
         repository.updateReaderSettings(reader)
+    }
+
+    fun updateAppearance(appearance: AppearanceSettings) {
+        repository.updateAppearance(appearance)
     }
 
     fun applyPreset(settings: ReaderSettings) {

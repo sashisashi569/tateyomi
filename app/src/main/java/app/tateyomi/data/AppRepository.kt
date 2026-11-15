@@ -333,6 +333,11 @@ class AppRepository(private val context: Context) {
         scope.launch { persistSettings() }
     }
 
+    fun updateAppearance(appearance: AppearanceSettings) {
+        _settings.update { it.copy(appearance = appearance) }
+        scope.launch { persistSettings() }
+    }
+
     fun savePreset(name: String, reader: ReaderSettings) {
         val cleanName = name.trim().take(24)
         if (cleanName.isEmpty()) return

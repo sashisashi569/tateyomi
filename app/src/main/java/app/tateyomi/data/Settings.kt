@@ -17,6 +17,21 @@ enum class ReaderTheme {
     DARK,
 }
 
+/** App chrome theme, independent of the reader paper color. */
+@Serializable
+enum class AppThemeMode {
+    SYSTEM,
+    LIGHT,
+    DARK,
+}
+
+@Serializable
+data class AppearanceSettings(
+    val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
+    /** Pure black app background while the app theme resolves to dark. */
+    val amoled: Boolean = false,
+)
+
 /**
  * The typesetting grid. [charsPerLine] is the number of characters in one
  * vertical column (or one horizontal row), [linesPerPage] is the number of
@@ -110,6 +125,7 @@ data class AppSettings(
     val reader: ReaderSettings = ReaderSettings.Default,
     val presets: List<ReaderPreset> = emptyList(),
     val fonts: List<ManagedFont> = emptyList(),
+    val appearance: AppearanceSettings = AppearanceSettings(),
 )
 
 data class BuiltInPreset(

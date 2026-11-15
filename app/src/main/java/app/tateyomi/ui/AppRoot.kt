@@ -1,7 +1,11 @@
 package app.tateyomi.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -13,18 +17,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.core.view.WindowCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
+import app.tateyomi.data.AppThemeMode
 import app.tateyomi.ui.library.LibraryScreen
 import app.tateyomi.ui.reader.ReaderScreen
 import app.tateyomi.ui.stats.StatsScreen
+import app.tateyomi.ui.theme.TateyomiTheme
+import app.tateyomi.ui.theme.readerPalette
 
 @Composable
 fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
@@ -61,48 +71,76 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
         viewModel.back()
     }
 
-    Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        when (val current = screen) {
-            is Screen.Library -> LibraryScreen(
-                books = library,
-                ready = ready,
-                importState = importState,
-                coverFile = viewModel::coverFile,
-                onImport = viewModel::importBooks,
-                onOpenBook = viewModel::openBook,
-                onOpenStats = viewModel::openStats,
-                onOpenSettings = viewModel::openSettings,
-                onDeleteBook = viewModel::deleteBook,
-            )
-            is Screen.Reader -> ReaderScreen(
-                viewModel = viewModel,
-                state = readerState ?: ReaderUiState.Loading,
-                appSettings = settings,
-            )
-            is Screen.Stats -> StatsScreen(
-                books = library,
-                stats = stats,
-                onBack = viewModel::back,
-            )
-            is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
-                settings = settings,
-                fontBusy = fontBusy,
-                fontFileFor = viewModel::fontFile,
-                onBack = viewModel::back,
-                onReaderSettingsChange = viewModel::updateReaderSettings,
-                onSavePreset = viewModel::savePreset,
-                onDeletePreset = viewModel::deletePreset,
-                onAddFont = viewModel::addFont,
-                onDeleteFont = viewModel::deleteFont,
+    val appearance = settings.appearance
+    val darkTheme = when (appearance.themeMode) {
+        AppThemeMode.SYSTEM -> isSystemInDarkTheme()
+        AppThemeMode.LIGHT -> false
+        AppThemeMode.DARK -> true
+    }
+
+    val systemBarsDark = if (screen is Screen.Reader) {
+        readerPalette(settings.reader.theme).isDark
+    } else {
+        darkTheme
+    }
+    val view = LocalView.current
+    SideEffect {
+        val window = view.context.findActivity()?.window ?: return@SideEffect
+        WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars =
+            !systemBarsDark
+    }
+
+    TateyomiTheme(darkTheme = darkTheme, amoled = appearance.amoled) {
+        Box(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+            when (val current = screen) {
+                is Screen.Library -> LibraryScreen(
+                    books = library,
+                    ready = ready,
+                    importState = importState,
+                    coverFile = viewModel::coverFile,
+                    onImport = viewModel::importBooks,
+                    onOpenBook = viewModel::openBook,
+                    onOpenStats = viewModel::openStats,
+                    onOpenSettings = viewModel::openSettings,
+                    onDeleteBook = viewModel::deleteBook,
+                )
+                is Screen.Reader -> ReaderScreen(
+                    viewModel = viewModel,
+                    state = readerState ?: ReaderUiState.Loading,
+                    appSettings = settings,
+                )
+                is Screen.Stats -> StatsScreen(
+                    books = library,
+                    stats = stats,
+                    onBack = viewModel::back,
+                )
+                is Screen.Settings -> app.tateyomi.ui.settings.SettingsScreen(
+                    settings = settings,
+                    fontBusy = fontBusy,
+                    fontFileFor = viewModel::fontFile,
+                    onBack = viewModel::back,
+                    onReaderSettingsChange = viewModel::updateReaderSettings,
+                    onSavePreset = viewModel::savePreset,
+                    onDeletePreset = viewModel::deletePreset,
+                    onAppearanceChange = viewModel::updateAppearance,
+                    onAddFont = viewModel::addFont,
+                    onDeleteFont = viewModel::deleteFont,
+                )
+            }
+
+            SnackbarHost(
+                hostState = snackbar,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(horizontal = 16.dp, vertical = 12.dp)
+                    .navigationBarsPadding(),
             )
         }
-
-        SnackbarHost(
-            hostState = snackbar,
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(horizontal = 16.dp, vertical = 12.dp)
-                .navigationBarsPadding(),
-        )
     }
+}
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }

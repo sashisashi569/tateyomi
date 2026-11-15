@@ -42,7 +42,11 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -63,6 +67,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.activity.compose.BackHandler
 import app.tateyomi.data.AppSettings
+import app.tateyomi.data.AppThemeMode
+import app.tateyomi.data.AppearanceSettings
 import app.tateyomi.data.BuiltInFonts
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
@@ -89,6 +95,7 @@ fun SettingsScreen(
     onReaderSettingsChange: (app.tateyomi.data.ReaderSettings) -> Unit,
     onSavePreset: (String, app.tateyomi.data.ReaderSettings) -> Unit,
     onDeletePreset: (app.tateyomi.data.ReaderPreset) -> Unit,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     onAddFont: (Uri) -> Unit,
     onDeleteFont: (String) -> Unit,
 ) {
@@ -133,6 +140,8 @@ fun SettingsScreen(
             )
             PAGE_ABOUT -> AppInfoPage()
             else -> SettingsHome(
+                appearance = settings.appearance,
+                onAppearanceChange = onAppearanceChange,
                 onOpenDisplay = { page = PAGE_DISPLAY },
                 onOpenFonts = { page = PAGE_FONTS },
                 onOpenAbout = { page = PAGE_ABOUT },
@@ -164,6 +173,8 @@ private fun SettingsTopBar(title: String, onBack: () -> Unit) {
 
 @Composable
 private fun SettingsHome(
+    appearance: AppearanceSettings,
+    onAppearanceChange: (AppearanceSettings) -> Unit,
     onOpenDisplay: () -> Unit,
     onOpenFonts: () -> Unit,
     onOpenAbout: () -> Unit,
@@ -182,7 +193,7 @@ private fun SettingsHome(
             modifier = Modifier.padding(top = 8.dp),
         )
         Text(
-            text = "表示・フォント・アプリの情報",
+            text = "表示・フォント・外観・アプリの情報",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 2.dp, bottom = 22.dp),
@@ -207,6 +218,81 @@ private fun SettingsHome(
             title = "アプリ情報",
             subtitle = "バージョン・ライセンス",
             onClick = onOpenAbout,
+        )
+        Spacer(Modifier.height(28.dp))
+        Text(
+            text = "アプリの外観",
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 1.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, bottom = 8.dp),
+        )
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    text = "カラーテーマ",
+                    fontFamily = FontFamily.Serif,
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 16.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                    AppThemeMode.entries.forEachIndexed { index, mode ->
+                        SegmentedButton(
+                            selected = appearance.themeMode == mode,
+                            onClick = {
+                                onAppearanceChange(appearance.copy(themeMode = mode))
+                            },
+                            shape = SegmentedButtonDefaults.itemShape(
+                                index = index,
+                                count = AppThemeMode.entries.size,
+                            ),
+                        ) {
+                            Text(mode.label(), fontSize = 13.sp)
+                        }
+                    }
+                }
+                Text(
+                    text = "システムは端末のダークモードに追従します。",
+                    fontSize = 10.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 6.dp),
+                )
+                Spacer(Modifier.height(12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            text = "AMOLED",
+                            fontFamily = FontFamily.Serif,
+                            fontWeight = FontWeight.SemiBold,
+                            fontSize = 16.sp,
+                        )
+                        Text(
+                            text = "ダークテーマ時に背景を純黒にします。",
+                            fontSize = 10.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = appearance.amoled,
+                        onCheckedChange = { checked ->
+                            onAppearanceChange(appearance.copy(amoled = checked))
+                        },
+                    )
+                }
+            }
+        }
+        Text(
+            text = "紙面カラーは「表示設定 > 紙面」で個別に変更できます。",
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 6.dp),
         )
         Spacer(Modifier.height(28.dp))
         Text(
@@ -719,4 +805,11 @@ private fun formatFileSize(bytes: Long): String {
     val kb = bytes / 1024.0
     if (kb < 1024) return String.format(Locale.JAPAN, "%.0f KB", kb)
     return String.format(Locale.JAPAN, "%.1f MB", kb / 1024.0)
+}
+
+
+private fun AppThemeMode.label(): String = when (this) {
+    AppThemeMode.SYSTEM -> "システム"
+    AppThemeMode.LIGHT -> "ライト"
+    AppThemeMode.DARK -> "ダーク"
 }

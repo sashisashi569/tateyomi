@@ -20,6 +20,10 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 |---|---|
 | ![設定](docs/screenshots/settings-home.png) | ![表示設定](docs/screenshots/display-settings.png) |
 
+| アプリの外観（システム／ライト） | アプリの外観（ダーク・AMOLED） |
+|---|---|
+| ![アプリの外観](docs/screenshots/appearance-light.png) | ![AMOLED](docs/screenshots/appearance-dark-amoled.png) |
+
 | 表示設定（紙面・プリセット） | フォントの選択 |
 |---|---|
 | ![紙面とプリセット](docs/screenshots/display-settings-presets.png) | ![フォントの選択](docs/screenshots/font-picker.png) |
@@ -56,6 +60,8 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 - **読書統計**
   - 今日 / 累計の読書時間、連続読書日数、読了冊数、読んだ文字数
   - 直近7日間グラフ、本ごとの読書時間と進捗
+- **アプリの外観**：システム / ライト / ダーク、AMOLED（ダーク時に純黒背景）
+  - 読書画面の紙面カラー（生成り / 白 / 夜）とは独立して設定
 - **紙面テーマ**：生成り / 白 / 夜
 - **設定**（本棚右上の歯車、またはリーダー下部の「表示」から）
   - **表示設定**：組方向、字数・行数・行間・字下げ・余白、フォント、紙面テーマ、プリセット
@@ -132,7 +138,7 @@ app/src/main/java/app/tateyomi/
 │   ├── reader/             Pager、Canvas 描画、目次・設定シート
 │   ├── settings/           設定、表示設定、フォントマネージャー、アプリ情報
 │   ├── stats/              読書統計
-│   └── theme/              Material 3 テーマ、紙面パレット
+│   └── theme/              Material 3 テーマ、ライト／ダーク／AMOLED、紙面パレット
 └── util/                  時間・文字数・連続読書日数の整形
 ```
 
@@ -188,6 +194,7 @@ gradle testDebugUnitTest
 - `VerticalGlyphsTest`：省略記号・ダッシュ類の縦組み回転判定
 - `FontsTest`：端末フォントIDと旧設定の互換、追加フォントの解決・フォールバック
 - `FontMetadataTest`：フォントでないファイルの書体名解析
+- `AppearanceTest`：カラーテーマ／AMOLED の既定値・保存形式・旧設定との互換
 - `EpubParserTest`：合成 EPUB（ルビ、画像、名前空間付き OPF、固定レイアウト画像 spine）
 - `FormattingTest`：時間・文字数・連続読書日数
 - `EpubCollectionTest`：手元の EPUB コーパスを一括パース（環境変数があるときだけ実行）

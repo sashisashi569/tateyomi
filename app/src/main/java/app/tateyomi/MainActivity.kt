@@ -7,7 +7,6 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import app.tateyomi.ui.TateyomiAppRoot
-import app.tateyomi.ui.theme.TateyomiTheme
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -20,9 +19,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         setContent {
-            TateyomiTheme {
-                TateyomiAppRoot()
-            }
+            TateyomiAppRoot()
         }
     }
 }
