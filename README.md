@@ -16,6 +16,10 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 |---|---|
 | ![目次](docs/screenshots/toc.png) | ![リーダーの表示設定](docs/screenshots/settings.png) |
 
+| 見開き（縦書き・横向き） | 見開き（横書き） |
+|---|---|
+| ![縦書きの見開き](docs/screenshots/spread-vertical.png) | ![横書きの見開き](docs/screenshots/spread-horizontal.png) |
+
 | 設定 | 設定画面の表示設定 |
 |---|---|
 | ![設定](docs/screenshots/settings-home.png) | ![表示設定](docs/screenshots/display-settings.png) |
@@ -47,6 +51,10 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - 省略記号 `……`・ダッシュ・長音・波ダッシュは、フォントの `vert` 対応に依存せず90度回転するフォールバックあり
   - ページ単位の送り（タップ／スワイプ）、ページスライダー
   - ヘッダー／フッターは常時表示
+- **見開き表示**
+  - 自動（横向きのとき見開き） / 単ページ / 見開き の3モード
+  - 縦書きは右ページから左ページへ、横書きは左ページから右ページへ
+  - 見開きでも各ページの文字サイズは表示領域に合わせて自動縮小
 - **組式プリセット**
   - 文庫 / 単行本 / 大活字 / 横書き
   - 現在の設定を名前付きで保存・削除
@@ -64,7 +72,7 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - 読書画面の紙面カラー（生成り / 白 / 夜）とは独立して設定
 - **紙面テーマ**：生成り / 白 / 夜
 - **設定**（本棚右上の歯車、またはリーダー下部の「表示」から）
-  - **表示設定**：組方向、字数・行数・行間・字下げ・余白、フォント、紙面テーマ、プリセット
+  - **表示設定**：組方向、見開き、字数・行数・行間・字下げ・余白、フォント、紙面テーマ、プリセット
   - リーダーの「表示」シートと設定画面の「表示設定」は同じ編集画面を共有
   - **フォントマネージャー**：フォント一覧、TTF / OTF / TTC の追加・削除
   - **アプリ情報**：バージョン、対応形式、プライバシー、オープンソース
@@ -113,7 +121,7 @@ gradle assembleRelease      # 署名なし release APK（R8 有効）
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-1.1.0-debugsigned.apk`
+ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-1.2.0-debugsigned.apk`
 に生成しています（ローカルの debug keystore で署名したテスト用。ストア配布用
 ではありません）。APK などのビルド成果物は Git 管理外です。
 この APK に EPUB は同梱されていません。本棚の「EPUBを追加」から取り込んでください。
@@ -133,6 +141,7 @@ app/src/main/java/app/tateyomi/
 │   └── Stats.kt            読書統計
 ├── reader/
 │   ├── ReaderLayout.kt     字数×行数のグリッド組版、禁則処理、ページ割付
+│   ├── Spread.kt           見開きのページペアとページャー項目数の計算
 │   ├── ReaderFonts.kt      フォントIDから端末ファミリ／フォントファイルを解決
 │   ├── ReaderTypefaces.kt  端末フォント・追加フォントの Typeface キャッシュ
 │   └── ...
@@ -200,6 +209,7 @@ gradle testDebugUnitTest
 - `FontsTest`：端末フォントIDと旧設定の互換、追加フォントの解決・フォールバック
 - `FontMetadataTest`：フォントでないファイルの書体名解析
 - `AppearanceTest`：カラーテーマ／AMOLED の既定値・保存形式・旧設定との互換
+- `SpreadTest`：自動／単ページ／見開きの判定、ページペアと端数ページ
 - `EpubParserTest`：合成 EPUB（ルビ、画像、名前空間付き OPF、固定レイアウト画像 spine）
 - `FormattingTest`：時間・文字数・連続読書日数
 - `EpubCollectionTest`：手元の EPUB コーパスを一括パース（環境変数があるときだけ実行）

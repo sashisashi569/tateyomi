@@ -25,6 +25,15 @@ enum class AppThemeMode {
     DARK,
 }
 
+/** How one/two layout pages are shown on screen. */
+@Serializable
+enum class SpreadMode {
+    /** One page in portrait, two pages in landscape. */
+    AUTO,
+    SINGLE,
+    SPREAD,
+}
+
 @Serializable
 data class AppearanceSettings(
     val themeMode: AppThemeMode = AppThemeMode.SYSTEM,
@@ -49,6 +58,7 @@ data class ReaderSettings(
     val font: FontChoice = FontChoice.MINCHO,
     val fontId: String? = null,
     val theme: ReaderTheme = ReaderTheme.PAPER,
+    val spread: SpreadMode = SpreadMode.AUTO,
 ) {
     fun normalized(): ReaderSettings = copy(
         charsPerLine = charsPerLine.coerceIn(MIN_CHARS, MAX_CHARS),
@@ -119,6 +129,13 @@ data class ReaderPreset(
     val name: String,
     val settings: ReaderSettings,
 )
+
+/** Resolves [SpreadMode.AUTO] against the current orientation. */
+fun ReaderSettings.usesSpread(landscape: Boolean): Boolean = when (spread) {
+    SpreadMode.AUTO -> landscape
+    SpreadMode.SINGLE -> false
+    SpreadMode.SPREAD -> true
+}
 
 @Serializable
 data class AppSettings(

@@ -89,7 +89,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private var lastAccrualMs = 0L
     private var pendingChars = 0L
     private var pendingPages = 0L
-    private var lastPage: Int? = null
 
     fun openBook(id: String) {
         if (_screen.value is Screen.Reader && (_readerState.value as? ReaderUiState.Ready)?.book?.summary?.id == id) {
@@ -98,7 +97,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         _screen.value = Screen.Reader(id)
         _readerState.value = ReaderUiState.Loading
         _location.value = null
-        lastPage = null
         viewModelScope.launch {
             try {
                 val content = withContext(Dispatchers.IO) { repository.loadContent(id) }
@@ -248,16 +246,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
      * layout-independent, so changing font size or orientation can restore the
      * same place afterwards.
      */
-    fun onPageChanged(page: Int, totalPages: Int, progress: ReadingProgress) {
+    fun onPageChanged(
+        page: Int,
+        totalPages: Int,
+        progress: ReadingProgress,
+        advancedPages: Int,
+    ) {
         val book = (_readerState.value as? ReaderUiState.Ready)?.book ?: return
-        val previous = lastPage
-        if (previous != null && page == previous + 1) {
-            pendingPages++
-            if (totalPages > 0) {
-                pendingChars += (book.content.charCount / totalPages).coerceAtLeast(1).toLong()
-            }
+        if (advancedPages > 0 && totalPages > 0) {
+            pendingPages += advancedPages
+            pendingChars += (book.content.charCount / totalPages).coerceAtLeast(1).toLong() *
+                advancedPages
         }
-        lastPage = page
 
         val updated = progress.copy(updatedAt = System.currentTimeMillis())
         _location.value = updated

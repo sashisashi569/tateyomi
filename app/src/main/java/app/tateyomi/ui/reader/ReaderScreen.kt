@@ -3,6 +3,7 @@ package app.tateyomi.ui.reader
 import android.app.Activity
 import android.content.Context
 import android.content.ContextWrapper
+import android.content.res.Configuration
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -61,6 +62,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
@@ -78,10 +80,12 @@ import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.effectiveFontId
+import app.tateyomi.data.usesSpread
 import app.tateyomi.data.ReadingProgress
 import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.reader.ReaderLayoutEngine
+import app.tateyomi.reader.SpreadLayout
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.reader.computeReaderMetrics
 import app.tateyomi.ui.LoadedBook
@@ -94,6 +98,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.min
 import kotlin.math.roundToInt
 
 @Composable
@@ -153,6 +158,10 @@ private fun ReaderPager(
 
     val layout = layoutState
     val totalPages = layout?.totalPages ?: 1
+    val configuration = LocalConfiguration.current
+    val landscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val spread = settings.usesSpread(landscape)
+    val pagerPageCount = if (spread) SpreadLayout.count(totalPages) else totalPages
     val scope = rememberCoroutineScope()
     var currentPage by remember { mutableIntStateOf(0) }
     var pagerStateRef by remember { mutableStateOf<PagerState?>(null) }
@@ -187,11 +196,16 @@ private fun ReaderPager(
         ?.first
         ?.title
         ?.takeIf { it.isNotBlank() }
-    val progress = layout?.progressFor(currentPage)
+    val visibleEndPage = if (spread) {
+        min(currentPage + 1, (totalPages - 1).coerceAtLeast(0))
+    } else {
+        currentPage
+    }
+    val progress = layout?.progressFor(visibleEndPage)
 
     fun nextPage() {
         val pagerState = pagerStateRef ?: return
-        if (pagerState.currentPage < totalPages - 1) {
+        if (pagerState.currentPage < pagerPageCount - 1) {
             scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
         }
     }
@@ -247,22 +261,44 @@ private fun ReaderPager(
                     CircularProgressIndicator(color = palette.accent, strokeWidth = 2.dp)
                 }
             } else {
-                key(currentLayout) {
-                    val initialPage = currentLayout.pageFor(location)
-                        .coerceIn(0, (currentLayout.totalPages - 1).coerceAtLeast(0))
+                key(currentLayout, spread) {
+                    val initialPage = currentLayout.pageFor(location).let { page ->
+                        if (spread) SpreadLayout.indexOfPage(page) else page
+                    }.coerceIn(0, (pagerPageCount - 1).coerceAtLeast(0))
                     val pagerState = rememberPagerState(initialPage = initialPage) {
-                        currentLayout.totalPages
+                        pagerPageCount
                     }
-                    LaunchedEffect(pagerState) {
+                    var lastSettledPagerPage by remember(pagerState) { mutableIntStateOf(-1) }
+                    LaunchedEffect(pagerState, spread) {
                         pagerStateRef = pagerState
                         snapshotFlow { pagerState.settledPage }
                             .distinctUntilChanged()
-                            .collect { page ->
-                                currentPage = page
+                            .collect { pagerPage ->
+                                val first = if (spread) {
+                                    SpreadLayout.startPage(pagerPage, currentLayout.totalPages)
+                                } else {
+                                    pagerPage
+                                }
+                                val last = if (spread) {
+                                    min(first + 1, currentLayout.totalPages - 1)
+                                } else {
+                                    first
+                                }
+                                val advanced = if (
+                                    lastSettledPagerPage >= 0 &&
+                                    pagerPage == lastSettledPagerPage + 1
+                                ) {
+                                    last - first + 1
+                                } else {
+                                    0
+                                }
+                                lastSettledPagerPage = pagerPage
+                                currentPage = first
                                 viewModel.onPageChanged(
-                                    page = page,
+                                    page = first,
                                     totalPages = currentLayout.totalPages,
-                                    progress = currentLayout.progressFor(page),
+                                    progress = currentLayout.progressFor(last),
+                                    advancedPages = advanced,
                                 )
                             }
                     }
@@ -276,28 +312,50 @@ private fun ReaderPager(
                         modifier = Modifier.fillMaxSize(),
                         reverseLayout = settings.vertical,
                         beyondViewportPageCount = 1,
-                    ) { page ->
-                        ReaderPageView(
-                            book = book,
-                            layout = currentLayout,
-                            page = page,
-                            fontSpec = fontSpec,
-                            palette = palette,
-                            modifier = Modifier.fillMaxSize(),
-                        )
+                    ) { pagerPage ->
+                        if (spread) {
+                            ReaderSpreadView(
+                                book = book,
+                                layout = currentLayout,
+                                spreadIndex = pagerPage,
+                                fontSpec = fontSpec,
+                                palette = palette,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        } else {
+                            ReaderPageView(
+                                book = book,
+                                layout = currentLayout,
+                                page = pagerPage,
+                                fontSpec = fontSpec,
+                                palette = palette,
+                                modifier = Modifier.fillMaxSize(),
+                            )
+                        }
                     }
                 }
             }
         }
 
+        val safePage = currentPage.coerceIn(0, (totalPages - 1).coerceAtLeast(0))
+        val sliderCount = if (spread) SpreadLayout.count(totalPages) else totalPages
+        val sliderIndex = if (spread) SpreadLayout.indexOfPage(safePage) else safePage
+        val pageLabel = if (spread && visibleEndPage > safePage) {
+            "${safePage + 1}-${visibleEndPage + 1}"
+        } else {
+            "${safePage + 1}"
+        }
         ReaderBottomBar(
-            page = currentPage.coerceIn(0, totalPages - 1),
+            sliderIndex = sliderIndex,
+            sliderCount = sliderCount,
+            pageLabel = pageLabel,
             totalPages = totalPages,
+            atEnd = visibleEndPage >= totalPages - 1,
             palette = palette,
             onSeek = { target ->
                 pagerStateRef?.let { pagerState ->
                     scope.launch {
-                        pagerState.scrollToPage(target.coerceIn(0, totalPages - 1))
+                        pagerState.scrollToPage(target.coerceIn(0, (sliderCount - 1).coerceAtLeast(0)))
                     }
                 }
             },
@@ -325,8 +383,13 @@ private fun ReaderPager(
                 onDismiss = { showToc = false },
                 onSelectEntry = { entry ->
                     showToc = false
+                    val target = currentLayout.pageForToc(entry).let { page ->
+                        if (spread) SpreadLayout.indexOfPage(page) else page
+                    }
                     pagerStateRef?.let { pagerState ->
-                        scope.launch { pagerState.scrollToPage(currentLayout.pageForToc(entry)) }
+                        scope.launch {
+                            pagerState.scrollToPage(target.coerceIn(0, (pagerPageCount - 1).coerceAtLeast(0)))
+                        }
                     }
                 },
             )
@@ -410,14 +473,17 @@ private fun ReaderTopBar(
 
 @Composable
 private fun ReaderBottomBar(
-    page: Int,
+    sliderIndex: Int,
+    sliderCount: Int,
+    pageLabel: String,
     totalPages: Int,
+    atEnd: Boolean,
     palette: ReaderPalette,
     onSeek: (Int) -> Unit,
     onOpenToc: () -> Unit,
     onOpenSettings: () -> Unit,
 ) {
-    var sliderValue by remember(page) { mutableFloatStateOf(page.toFloat()) }
+    var sliderValue by remember(sliderIndex) { mutableFloatStateOf(sliderIndex.toFloat()) }
     Surface(
         modifier = Modifier
             .padding(horizontal = 10.dp, vertical = 8.dp)
@@ -437,7 +503,7 @@ private fun ReaderBottomBar(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "${page + 1}",
+                    text = pageLabel,
                     fontSize = 12.sp,
                     color = palette.muted,
                 )
@@ -445,7 +511,7 @@ private fun ReaderBottomBar(
                     value = sliderValue,
                     onValueChange = { sliderValue = it },
                     onValueChangeFinished = { onSeek(sliderValue.roundToInt()) },
-                    valueRange = 0f..(totalPages - 1).coerceAtLeast(1).toFloat(),
+                    valueRange = 0f..(sliderCount - 1).coerceAtLeast(1).toFloat(),
                     colors = SliderDefaults.colors(
                         thumbColor = palette.accent,
                         activeTrackColor = palette.accent,
@@ -480,7 +546,7 @@ private fun ReaderBottomBar(
                     Text("表示", fontSize = 13.sp)
                 }
                 Spacer(Modifier.weight(1f))
-                if (page >= totalPages - 1) {
+                if (atEnd) {
                     Surface(
                         shape = MaterialTheme.shapes.small,
                         color = palette.accent.copy(alpha = 0.12f),

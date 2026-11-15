@@ -59,6 +59,7 @@ import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.ReaderTheme
+import app.tateyomi.data.SpreadMode
 import app.tateyomi.data.effectiveFontId
 import app.tateyomi.data.fontDisplayName
 import app.tateyomi.reader.resolveFontSpec
@@ -165,6 +166,33 @@ fun ReaderSettingsContent(
         }
         Text(
             text = if (settings.vertical) "右から左へ、上から下へ" else "左から右へ、上から下へ",
+            fontSize = 11.sp,
+            color = palette.muted,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+
+        Spacer(Modifier.height(18.dp))
+        SectionLabel("見開き", palette)
+        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+            SpreadMode.entries.forEachIndexed { index, mode ->
+                SegmentedButton(
+                    selected = settings.spread == mode,
+                    onClick = { onChange(settings.copy(spread = mode)) },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = SpreadMode.entries.size,
+                    ),
+                ) {
+                    Text(mode.label(), fontSize = 13.sp)
+                }
+            }
+        }
+        Text(
+            text = when (settings.spread) {
+                SpreadMode.AUTO -> "横向きのとき見開き、縦向きは単ページ"
+                SpreadMode.SINGLE -> "常に1ページずつ表示"
+                SpreadMode.SPREAD -> "常に2ページ見開きで表示"
+            },
             fontSize = 11.sp,
             color = palette.muted,
             modifier = Modifier.padding(top = 6.dp),
@@ -601,4 +629,10 @@ private fun ReaderTheme.label(): String = when (this) {
     ReaderTheme.PAPER -> "生成り"
     ReaderTheme.WHITE -> "白"
     ReaderTheme.DARK -> "夜"
+}
+
+private fun SpreadMode.label(): String = when (this) {
+    SpreadMode.AUTO -> "自動"
+    SpreadMode.SINGLE -> "単ページ"
+    SpreadMode.SPREAD -> "見開き"
 }

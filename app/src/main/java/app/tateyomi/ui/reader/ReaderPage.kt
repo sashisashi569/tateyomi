@@ -6,8 +6,12 @@ import android.graphics.Typeface
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -31,6 +35,7 @@ import app.tateyomi.reader.PageContent
 import app.tateyomi.reader.ReaderLayout
 import app.tateyomi.reader.ReaderFontSpec
 import app.tateyomi.reader.ReaderTypefaces
+import app.tateyomi.reader.SpreadLayout
 import app.tateyomi.reader.computeReaderMetrics
 import app.tateyomi.reader.needsManualVerticalRotation
 import app.tateyomi.ui.LoadedBook
@@ -73,6 +78,64 @@ fun ReaderPageView(
                 palette = palette,
                 pageNumber = page + 1,
                 modifier = modifier,
+            )
+        }
+    }
+}
+
+/**
+ * Renders two reading-order pages side by side. Vertical Japanese keeps page
+ * N on the right and N+1 on the left; horizontal text keeps N on the left.
+ */
+@Composable
+fun ReaderSpreadView(
+    book: LoadedBook,
+    layout: ReaderLayout,
+    spreadIndex: Int,
+    fontSpec: ReaderFontSpec,
+    palette: ReaderPalette,
+    modifier: Modifier = Modifier,
+) {
+    val first = SpreadLayout.startPage(spreadIndex, layout.totalPages)
+    val second = SpreadLayout.secondPage(spreadIndex, layout.totalPages)
+    val vertical = layout.settings.vertical
+    Box(modifier.background(palette.background)) {
+        Row(Modifier.fillMaxSize()) {
+            if (vertical) {
+                SpreadSlot(second, book, layout, fontSpec, palette)
+                SpreadSlot(first, book, layout, fontSpec, palette)
+            } else {
+                SpreadSlot(first, book, layout, fontSpec, palette)
+                SpreadSlot(second, book, layout, fontSpec, palette)
+            }
+        }
+        Box(
+            Modifier
+                .align(Alignment.Center)
+                .fillMaxHeight()
+                .width(1.dp)
+                .background(palette.rule.copy(alpha = 0.35f)),
+        )
+    }
+}
+
+@Composable
+private fun RowScope.SpreadSlot(
+    page: Int?,
+    book: LoadedBook,
+    layout: ReaderLayout,
+    fontSpec: ReaderFontSpec,
+    palette: ReaderPalette,
+) {
+    Box(Modifier.weight(1f).fillMaxHeight()) {
+        if (page != null) {
+            ReaderPageView(
+                book = book,
+                layout = layout,
+                page = page,
+                fontSpec = fontSpec,
+                palette = palette,
+                modifier = Modifier.fillMaxSize(),
             )
         }
     }
