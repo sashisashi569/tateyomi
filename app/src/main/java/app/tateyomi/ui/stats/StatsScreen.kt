@@ -42,6 +42,8 @@ import app.tateyomi.data.BookSummary
 import app.tateyomi.data.BookStats
 import app.tateyomi.data.ReadingStats
 import app.tateyomi.ui.theme.Moss
+import app.tateyomi.ui.theme.MossLight
+import app.tateyomi.ui.theme.MossLighter
 import app.tateyomi.ui.theme.Paper
 import app.tateyomi.util.currentReadingStreak
 import app.tateyomi.util.formatCharCount
@@ -85,7 +87,7 @@ fun StatsScreen(
             Column(Modifier.padding(start = 2.dp)) {
                 Text(
                     text = "読書統計",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 28.sp,
                 )
@@ -116,7 +118,7 @@ fun StatsScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             MetricCard(
                 value = "${streak}日",
-                label = "連続読書",
+                label = "連続読書記録",
                 modifier = Modifier.weight(1f),
             )
             MetricCard(
@@ -126,7 +128,7 @@ fun StatsScreen(
             )
             MetricCard(
                 value = formatCharCount(stats.totalChars),
-                label = "読んだ文字",
+                label = "文字数",
                 modifier = Modifier.weight(1f),
             )
         }
@@ -141,7 +143,7 @@ fun StatsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "直近7日間",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                     )
@@ -170,7 +172,7 @@ fun StatsScreen(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "本ごとの読書",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 16.sp,
                     )
@@ -184,7 +186,7 @@ fun StatsScreen(
                 Spacer(Modifier.height(12.dp))
                 if (perBook.isEmpty()) {
                     Text(
-                        text = "まだ読書記録がありません。本を開いて、最初の一頁を。",
+                        text = "まだ読書記録がありません。本を開くと、読書時間が記録されます。",
                         fontSize = 12.sp,
                         lineHeight = 19.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -209,7 +211,7 @@ fun StatsScreen(
         if (stats.totalSeconds == 0L) {
             Spacer(Modifier.height(16.dp))
             Text(
-                text = "読書時間は、本を開いているあいだ自動で記録されます。",
+                text = "読書時間は、本を開いているあいだ自動的に記録されます。",
                 fontSize = 11.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -236,7 +238,7 @@ private fun HeroCard(
                 .clip(RoundedCornerShape(24.dp))
                 .background(
                     Brush.linearGradient(
-                        listOf(Moss, Color(0xFF2F4F46), Color(0xFF3B5550)),
+                        listOf(Moss, MossLight, MossLighter),
                     ),
                 )
                 .padding(horizontal = 20.dp, vertical = 20.dp),
@@ -251,7 +253,7 @@ private fun HeroCard(
                 Spacer(Modifier.height(2.dp))
                 Text(
                     text = formatDuration(todaySeconds),
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 38.sp,
                     color = Paper,
@@ -284,7 +286,7 @@ private fun HeroCard(
                     }
                     Column(Modifier.weight(1f)) {
                         Text(
-                            text = "読んだ文字",
+                            text = "文字数",
                             fontSize = 9.sp,
                             color = Paper.copy(alpha = 0.6f),
                         )
@@ -311,7 +313,7 @@ private fun MetricCard(value: String, label: String, modifier: Modifier = Modifi
         Column(Modifier.padding(horizontal = 12.dp, vertical = 14.dp)) {
             Text(
                 text = value,
-                fontFamily = FontFamily.Serif,
+                fontFamily = FontFamily.SansSerif,
                 fontWeight = FontWeight.SemiBold,
                 fontSize = 20.sp,
                 maxLines = 1,
@@ -407,7 +409,7 @@ private fun BookStatsRow(book: BookSummary, stats: BookStats) {
             ) {
                 Text(
                     text = "縦",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontSize = 10.sp,
                     color = Color(0xFF5C5244),
                     modifier = Modifier.align(Alignment.Center),
@@ -417,7 +419,7 @@ private fun BookStatsRow(book: BookSummary, stats: BookStats) {
             Column(Modifier.weight(1f)) {
                 Text(
                     text = book.title,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Medium,
                     fontSize = 13.sp,
                     maxLines = 1,

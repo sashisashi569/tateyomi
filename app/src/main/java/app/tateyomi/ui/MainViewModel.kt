@@ -170,7 +170,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _fontBusy.value = true
             try {
                 val font = withContext(Dispatchers.IO) { repository.addFont(uri) }
-                _messages.tryEmit("「${font.name}」を追加しました。表示設定から選択できます")
+                _messages.tryEmit("「${font.name}」を追加しました。表示設定から選べます")
             } catch (e: Exception) {
                 _messages.tryEmit(e.message ?: "フォントを追加できませんでした")
             } finally {
@@ -282,7 +282,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     imported++
                 } catch (e: Exception) {
                     if (firstError == null) {
-                        firstError = e.message ?: "読み込みに失敗しました"
+                        firstError = e.message ?: "EPUBを読み込めませんでした"
                     }
                 }
             }

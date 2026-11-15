@@ -112,13 +112,8 @@ fun ReaderSettingsContent(
 
     Column(modifier.fillMaxWidth()) {
         Text(
-            text = "文字サイズは字数・行数・行間から自動で決まります",
+            text = "文字サイズは端末幅と組式から自動的に調整されます。",
             fontSize = 11.sp,
-            color = palette.muted,
-        )
-        Text(
-            text = "端末の表示領域に収まるよう自動縮小します",
-            fontSize = 10.sp,
             color = palette.muted,
         )
         Spacer(Modifier.height(16.dp))
@@ -132,7 +127,7 @@ fun ReaderSettingsContent(
             onClick = { showFontDialog = true },
         )
         Text(
-            text = "フォントの追加・削除は「設定 > フォントマネージャー」から行えます。",
+            text = "フォントの追加・削除は「設定 > フォントマネージャー」でできます。",
             fontSize = 10.sp,
             color = palette.muted,
             modifier = Modifier.padding(top = 6.dp),
@@ -180,12 +175,6 @@ fun ReaderSettingsContent(
                 Text("横書き", fontSize = 14.sp)
             }
         }
-        Text(
-            text = if (settings.vertical) "右から左へ、上から下へ" else "左から右へ、上から下へ",
-            fontSize = 11.sp,
-            color = palette.muted,
-            modifier = Modifier.padding(top = 6.dp),
-        )
 
         Spacer(Modifier.height(18.dp))
         SectionLabel("見開き", palette)
@@ -222,7 +211,7 @@ fun ReaderSettingsContent(
             onChange = { onChange(settings.copy(spreadGapDp = it)) },
         )
         Text(
-            text = "見開き表示のとき、左右ページの間に空ける余白です。負の値にするとページ同士を重ねます。",
+            text = "見開きのとき、左右ページの間に空ける余白です。負の値にするとページ同士を重ねます。",
             fontSize = 10.sp,
             color = palette.muted,
         )
@@ -234,7 +223,7 @@ fun ReaderSettingsContent(
             Column(Modifier.weight(1f)) {
                 Text("表紙ページをスキップ", fontSize = 14.sp, color = palette.text)
                 Text(
-                    text = "先頭の表紙画像を読み飛ばします。",
+                    text = "先頭の画像ページを表紙としてスキップします。",
                     fontSize = 10.sp,
                     color = palette.muted,
                 )
@@ -288,7 +277,7 @@ fun ReaderSettingsContent(
             onChange = { onChange(settings.copy(marginDp = it)) },
         )
         Text(
-            text = "余白は文字サイズに比例して描画されます。",
+            text = "余白は文字サイズに合わせて広がります。",
             fontSize = 10.sp,
             color = palette.muted,
         )
@@ -301,7 +290,7 @@ fun ReaderSettingsContent(
             onChange = { onChange(settings.copy(rubyScale = it)) },
         )
         Text(
-            text = "ルビ2文字で本文1文字くらいが目安です。",
+            text = "ルビ2文字で本文1文字が目安です。",
             fontSize = 10.sp,
             color = palette.muted,
         )
@@ -396,7 +385,7 @@ fun ReaderSettingsContent(
             ) {
                 Icon(Icons.Outlined.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(6.dp))
-                Text("現在の設定を保存", fontSize = 13.sp)
+                Text("プリセットとして保存", fontSize = 13.sp)
             }
             TextButton(
                 onClick = { onChange(ReaderSettings.Default) },
@@ -404,7 +393,7 @@ fun ReaderSettingsContent(
             ) {
                 Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(16.dp))
                 Spacer(Modifier.width(4.dp))
-                Text("初期設定", fontSize = 13.sp)
+                Text("既定に戻す", fontSize = 13.sp)
             }
         }
     }
@@ -439,7 +428,7 @@ fun ReaderSettingsContent(
             containerColor = palette.surface,
             titleContentColor = palette.text,
             textContentColor = palette.text,
-            title = { Text("プリセットを保存", fontFamily = FontFamily.Serif) },
+            title = { Text("プリセットを保存", fontFamily = FontFamily.SansSerif) },
             text = {
                 androidx.compose.foundation.layout.Column {
                     OutlinedTextField(
@@ -451,7 +440,7 @@ fun ReaderSettingsContent(
                     )
                     when {
                         builtInNameTaken -> Text(
-                            text = "組み込みプリセットと同じ名前は使用できません。",
+                            text = "プリセット名が重複しています。",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(top = 6.dp),
@@ -496,10 +485,10 @@ fun ReaderSettingsContent(
             containerColor = palette.surface,
             titleContentColor = palette.text,
             textContentColor = palette.text,
-            title = { Text("プリセットを上書き", fontFamily = FontFamily.Serif) },
+            title = { Text("プリセットを上書き", fontFamily = FontFamily.SansSerif) },
             text = {
                 Text(
-                    "「$name」は既に保存されています。上書きしますか？",
+                    "「$name」を上書きしますか？",
                     fontSize = 14.sp,
                 )
             },
@@ -560,7 +549,7 @@ private fun FontSelectionRow(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Spacer(Modifier.width(7.dp))
-                    Badge(if (selected?.builtIn != false) "端末" else "追加", palette)
+                    Badge(if (selected?.builtIn != false) "標準" else "追加", palette)
                 }
                 FontSample(
                     font = spec,
@@ -596,7 +585,7 @@ private fun FontPickerDialog(
         containerColor = palette.surface,
         titleContentColor = palette.text,
         textContentColor = palette.text,
-        title = { Text("フォント", fontFamily = FontFamily.Serif) },
+        title = { Text("フォント", fontFamily = FontFamily.SansSerif) },
         text = {
             LazyColumn(
                 modifier = Modifier.heightIn(max = 420.dp),
@@ -639,7 +628,7 @@ private fun FontPickerDialog(
                                         overflow = TextOverflow.Ellipsis,
                                     )
                                     Spacer(Modifier.width(6.dp))
-                                    Badge(if (font.builtIn) "端末" else "追加", palette)
+                                    Badge(if (font.builtIn) "標準" else "追加", palette)
                                 }
                                 FontSample(
                                     font = spec,

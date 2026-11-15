@@ -89,7 +89,7 @@ fun TocSheet(
             ) {
                 Text(
                     text = "目次",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 20.sp,
                 )
@@ -220,7 +220,7 @@ fun ReaderSettingsSheet(
                 ) {
                     Text(
                         text = "表示設定",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 22.sp,
                     )

@@ -218,6 +218,97 @@ class EpubParserTest {
     }
 
     @Test
+    fun promotesSoloParagraphImagesToFullPageIllustrations() {
+        val epub = writeEpub(
+            mapOf(
+                "mimetype" to "application/epub+zip",
+                "META-INF/container.xml" to """
+                    <?xml version="1.0"?>
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles>
+                        <rootfile full-path="OPS/content.opf" media-type="application/oebps-package+xml"/>
+                      </rootfiles>
+                    </container>
+                """.trimIndent(),
+                "OPS/content.opf" to """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>挿絵テスト</dc:title>
+                      </metadata>
+                      <manifest>
+                        <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="illust" href="images/illust.png" media-type="image/png"/>
+                      </manifest>
+                      <spine><itemref idref="text"/></spine>
+                    </package>
+                """.trimIndent(),
+                "OPS/text.xhtml" to """
+                    <html><body>
+                      <p>挿絵の前の段落です。</p>
+                      <p class="illust"><img src="images/illust.png" alt="挿絵"/></p>
+                      <p>挿絵の後の段落です。</p>
+                    </body></html>
+                """.trimIndent(),
+                "OPS/images/illust.png" to pixelPng,
+            ),
+        )
+
+        val parsed = EpubParser.parse(epub)
+        assertEquals(1, parsed.chapters.size)
+        val blocks = parsed.chapters[0].blocks
+        assertEquals(3, blocks.size)
+        assertTrue(blocks[0] is TextBlock)
+        assertTrue(blocks[1] is ImageBlock)
+        assertTrue(blocks[2] is TextBlock)
+        assertTrue(blocks.filterIsInstance<TextBlock>().none { it.inlineImages.isNotEmpty() })
+        assertEquals(1, parsed.images.size)
+    }
+
+    @Test
+    fun keepsGaijiWrappedInSpanAloneInsideParagraphInline() {
+        val epub = writeEpub(
+            mapOf(
+                "mimetype" to "application/epub+zip",
+                "META-INF/container.xml" to """
+                    <?xml version="1.0"?>
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles>
+                        <rootfile full-path="OPS/content.opf" media-type="application/oebps-package+xml"/>
+                      </rootfiles>
+                    </container>
+                """.trimIndent(),
+                "OPS/content.opf" to """
+                    <?xml version="1.0" encoding="UTF-8"?>
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>外字段落テスト</dc:title>
+                      </metadata>
+                      <manifest>
+                        <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="gaiji" href="images/gaiji.png" media-type="image/png"/>
+                      </manifest>
+                      <spine><itemref idref="text"/></spine>
+                    </package>
+                """.trimIndent(),
+                "OPS/text.xhtml" to """
+                    <html><body>
+                      <p><span class="gaiji"><img src="images/gaiji.png" alt="字"/></span></p>
+                    </body></html>
+                """.trimIndent(),
+                "OPS/images/gaiji.png" to pixelPng,
+            ),
+        )
+
+        val parsed = EpubParser.parse(epub)
+        assertEquals(1, parsed.chapters.size)
+        val block = parsed.chapters[0].blocks.filterIsInstance<TextBlock>().single()
+        assertEquals("\uFFFC", block.text)
+        assertEquals(1, block.inlineImages.size)
+        assertTrue(parsed.chapters[0].blocks.none { it is ImageBlock })
+    }
+
+    @Test
     fun keepsSvgWrappedIllustrationPages() {
         val epub = writeEpub(
             mapOf(

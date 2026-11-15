@@ -187,7 +187,7 @@ private fun SettingsTopBar(title: String, onBack: () -> Unit) {
         }
         Text(
             text = title,
-            fontFamily = FontFamily.Serif,
+            fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
             modifier = Modifier.padding(start = 4.dp),
@@ -210,20 +210,6 @@ private fun SettingsHome(
             .verticalScroll(rememberScrollState())
             .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
-        Text(
-            text = "読書環境",
-            fontFamily = FontFamily.Serif,
-            fontWeight = FontWeight.SemiBold,
-            fontSize = 28.sp,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            text = "表示・フォント・外観・バックアップ・アプリの情報",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp, bottom = 22.dp),
-        )
-
         SettingsMenuRow(
             icon = { Icon(Icons.Outlined.Palette, contentDescription = null) },
             title = "表示設定",
@@ -269,7 +255,7 @@ private fun SettingsHome(
             Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
                 Text(
                     text = "カラーテーマ",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
                 )
@@ -291,7 +277,7 @@ private fun SettingsHome(
                     }
                 }
                 Text(
-                    text = "システムは端末のダークモードに追従します。",
+                    text = "システムのカラーテーマに追従します。",
                     fontSize = 10.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 6.dp),
@@ -301,12 +287,12 @@ private fun SettingsHome(
                     Column(Modifier.weight(1f)) {
                         Text(
                             text = "AMOLED",
-                            fontFamily = FontFamily.Serif,
+                            fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                         )
                         Text(
-                            text = "ダークテーマ時に背景を純黒にします。",
+                            text = "ダークテーマのとき、背景を純黒にします。",
                             fontSize = 10.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -377,7 +363,7 @@ private fun SettingsMenuRow(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 17.sp,
                 )
@@ -413,7 +399,7 @@ private fun DisplaySettingsPage(
             .padding(horizontal = 20.dp, vertical = 8.dp),
     ) {
         Text(
-            text = "読書画面に適用されます。リーダーの「表示」シートと同じ設定です。",
+            text = "リーダーの「表示」と同じ設定です。",
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 8.dp, bottom = 14.dp),
@@ -460,7 +446,7 @@ private fun FontManagerPage(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = "フォント一覧",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 20.sp,
                     )
@@ -489,7 +475,7 @@ private fun FontManagerPage(
                     }
                 }
                 Text(
-                    text = "TTF / OTF / TTC を追加できます。選択は「表示設定」で行います。",
+                    text = "TTF / OTF / TTC を追加できます。表示設定から選べます。",
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp, bottom = 8.dp),
@@ -570,7 +556,7 @@ private fun FontManagerPage(
                     color = MaterialTheme.colorScheme.surfaceVariant,
                 ) {
                     Text(
-                        text = "追加したフォントはありません。右上の「追加」からTTF / OTF / TTCを読み込めます。",
+                        text = "追加したフォントはありません。「追加」からTTF / OTF / TTCを読み込めます。",
                         fontSize = 11.sp,
                         lineHeight = 18.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -585,7 +571,7 @@ private fun FontManagerPage(
     pendingDelete?.let { font ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
-            title = { Text("フォントを削除", fontFamily = FontFamily.Serif) },
+            title = { Text("フォントを削除", fontFamily = FontFamily.SansSerif) },
             text = {
                 Text(
                     "「${font.name}」を削除します。" +
@@ -640,16 +626,10 @@ private fun BackupPage(
     ) {
         Text(
             text = "プリセットと読書統計",
-            fontFamily = FontFamily.Serif,
+            fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
-            modifier = Modifier.padding(top = 8.dp),
-        )
-        Text(
-            text = "1つのJSONファイルにまとめて書き出します。",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp, bottom = 18.dp),
+            modifier = Modifier.padding(top = 8.dp, bottom = 18.dp),
         )
 
         Surface(
@@ -695,7 +675,7 @@ private fun BackupPage(
             Column(Modifier.padding(16.dp)) {
                 Text("読み込む", fontWeight = FontWeight.SemiBold, fontSize = 16.sp)
                 Text(
-                    text = "プリセットは同名を上書き、読書進捗は書籍IDまたは" +
+                    text = "プリセットは同名を上書き、読書進捗は本のIDまたは" +
                         "タイトル・著者で照合して新しい方を採用します。" +
                         "読書統計は現在の値と合算します。",
                     fontSize = 11.sp,
@@ -731,7 +711,7 @@ private fun BackupPage(
 
         Text(
             text = "本文データ・フォントファイルはバックアップに含まれません。" +
-                "読書進捗は本棚にある書籍にのみ復元されます。",
+                "読書進捗は本棚にある本にのみ復元されます。",
             fontSize = 10.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 18.dp, bottom = 24.dp),
@@ -741,7 +721,7 @@ private fun BackupPage(
     pendingImport?.let { uri ->
         AlertDialog(
             onDismissRequest = { pendingImport = null },
-            title = { Text("バックアップを読み込む", fontFamily = FontFamily.Serif) },
+            title = { Text("バックアップを読み込む", fontFamily = FontFamily.SansSerif) },
             text = {
                 Text(
                     "プリセットは同名を上書き、読書進捗はより新しいものを採用し、" +
@@ -816,7 +796,7 @@ private fun AppInfoPage() {
                     Text(
                         text = "縦",
                         color = MaterialTheme.colorScheme.onSecondary,
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.Bold,
                         fontSize = 28.sp,
                     )
@@ -825,7 +805,7 @@ private fun AppInfoPage() {
                 Column {
                     Text(
                         text = "縦読み",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 24.sp,
                     )
@@ -848,15 +828,14 @@ private fun AppInfoPage() {
             InfoRow("パッケージ", context.packageName)
             InfoRow("対応形式", "EPUB 2 / EPUB 3（リフロー）")
             InfoRow("組方向", "縦書き / 横書き")
-            InfoRow("フォント", "端末フォント + 追加フォント")
+            InfoRow("フォント", "標準フォント + 追加フォント")
             InfoRow("保存先", "アプリ専用領域")
             InfoRow("ライセンス", "AGPL-3.0")
         }
 
         InfoSection(title = "プライバシー") {
             Text(
-                text = "本棚・本文・読書進捗・設定・統計は端末内にのみ保存されます。" +
-                    "ネットワーク通信は行いません。",
+                text = "すべてのデータは端末内にのみ保存されます。外部に送信はしません。",
                 fontSize = 12.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -871,22 +850,13 @@ private fun AppInfoPage() {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             Text(
-                text = "各ライブラリはそれぞれのライセンスに従います。",
+                text = "ライブラリはそれぞれのライセンスに従います。",
                 fontSize = 10.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp),
             )
         }
 
-        InfoSection(title = "テスト用データ") {
-            Text(
-                text = "アプリにEPUBは同梱されていません。UI検証用のEPUBは" +
-                    "androidTest用アセットにのみ含まれ、リリースAPKには含まれません。",
-                fontSize = 11.sp,
-                lineHeight = 18.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
         Spacer(Modifier.height(24.dp))
     }
 }

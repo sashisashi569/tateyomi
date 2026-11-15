@@ -18,6 +18,8 @@ val PaperSurface = Color(0xFFFBF7EE)
 val Ink = Color(0xFF24211C)
 val InkMuted = Color(0xFF6F675A)
 val Moss = Color(0xFF1F3A34)
+val MossLight = Color(0xFF2F4F46)
+val MossLighter = Color(0xFF3B5550)
 val Vermilion = Color(0xFFA34A3A)
 val Hairline = Color(0xFFD9CDB9)
 
@@ -91,44 +93,44 @@ private val AmoledDarkColors = DarkColors.copy(
 
 private val AppTypography = Typography(
     displayLarge = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 44.sp,
         lineHeight = 52.sp,
         letterSpacing = (-0.5).sp,
     ),
     displayMedium = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 34.sp,
         lineHeight = 42.sp,
     ),
     displaySmall = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
         fontSize = 28.sp,
         lineHeight = 36.sp,
     ),
     headlineLarge = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 28.sp,
         lineHeight = 36.sp,
     ),
     headlineMedium = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 24.sp,
         lineHeight = 32.sp,
     ),
     headlineSmall = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.Medium,
         fontSize = 20.sp,
         lineHeight = 28.sp,
     ),
     titleLarge = TextStyle(
-        fontFamily = FontFamily.Serif,
+        fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 20.sp,
         lineHeight = 26.sp,

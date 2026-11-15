@@ -28,7 +28,13 @@ data class BookSummary(
         get() = ((progress?.overallFraction ?: 0f) * 100f).toInt().coerceIn(0, 100)
 }
 
-const val BOOK_CONTENT_VERSION = 2
+/**
+ * Bump when parsing semantics change so cached content.json files are
+ * re-derived from the stored source.epub. 3: images that stand alone in a
+ * paragraph became full-page illustrations instead of 1-character inline
+ * images.
+ */
+const val BOOK_CONTENT_VERSION = 3
 
 @Serializable
 data class BookContent(

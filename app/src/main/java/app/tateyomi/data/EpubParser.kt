@@ -22,6 +22,23 @@ private const val MAX_TEXT_BYTES = 32L * 1024 * 1024
 private const val MAX_IMAGE_BYTES = 32L * 1024 * 1024
 private const val MAX_TOTAL_IMAGE_BYTES = 320L * 1024 * 1024
 
+/** Parents that make an <img> a candidate for inline (gaiji-style) layout. */
+private val INLINE_IMAGE_PARENTS = setOf(
+    "p", "a", "span", "li", "h1", "h2", "h3", "h4", "h5", "h6",
+    "blockquote", "figcaption", "td", "th",
+)
+
+/**
+ * Block containers searched when deciding whether an image stands alone.
+ * An image with nothing but whitespace around it inside one of these is a
+ * standalone illustration, not a character substitute.
+ */
+private val BLOCK_IMAGE_CONTAINERS = setOf(
+    "p", "li", "blockquote", "figcaption", "td", "th", "dd", "dt",
+    "h1", "h2", "h3", "h4", "h5", "h6",
+    "div", "figure", "section", "article", "main", "aside", "body",
+)
+
 private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp")
 
 private fun Element.localName(): String = tagName().substringAfterLast(':').lowercase()
@@ -902,12 +919,35 @@ object EpubParser {
         }
 
         private fun isInlineImage(element: Element): Boolean {
-            if (element.hasClass("gaiji")) return true
-            val parent = element.parent()?.localName()
-            return parent in setOf(
-                "p", "a", "span", "li", "h1", "h2", "h3", "h4", "h5", "h6",
-                "blockquote", "figcaption", "td", "th",
-            )
+            // A gaiji (character substitute) stays inline no matter where it
+            // appears; the marker may sit on the <img> itself or on a wrapper.
+            if (hasGaijiMarker(element)) return true
+            val parent = element.parent() ?: return false
+            if (parent.localName() !in INLINE_IMAGE_PARENTS) return false
+            // An image that is alone in its block — nothing but whitespace
+            // around it — is an illustration, not a character substitute, so
+            // the caller gives it a full page. Images sitting among text
+            // remain inline.
+            val block = nearestBlockContainer(parent) ?: return true
+            return block.text().isNotBlank()
+        }
+
+        private fun hasGaijiMarker(element: Element): Boolean {
+            var node: Element? = element
+            while (node != null) {
+                if (node.hasClass("gaiji")) return true
+                node = node.parent()
+            }
+            return false
+        }
+
+        private fun nearestBlockContainer(start: Element): Element? {
+            var node: Element? = start
+            while (node != null) {
+                if (node.localName() in BLOCK_IMAGE_CONTAINERS) return node
+                node = node.parent()
+            }
+            return null
         }
 
         private fun addImage(element: Element, anchor: String?) {

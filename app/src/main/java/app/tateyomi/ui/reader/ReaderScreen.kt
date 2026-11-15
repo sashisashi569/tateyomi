@@ -65,7 +65,6 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
@@ -516,7 +515,7 @@ private fun ReaderTopBar(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = title,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 16.sp,
                     color = palette.text,
@@ -726,7 +725,7 @@ private fun ReaderError(
                     onClick = onRetry,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = palette.accent,
-                        contentColor = Color(0xFFFFF8F2),
+                        contentColor = MaterialTheme.colorScheme.onPrimary,
                     ),
                 ) {
                     Icon(Icons.Outlined.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))

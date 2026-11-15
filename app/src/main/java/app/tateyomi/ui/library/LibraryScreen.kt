@@ -168,7 +168,7 @@ fun LibraryScreen(
                     ) {
                         Text(
                             text = "本棚",
-                            fontFamily = FontFamily.Serif,
+                            fontFamily = FontFamily.SansSerif,
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 19.sp,
                         )
@@ -205,7 +205,7 @@ fun LibraryScreen(
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("本を削除", fontFamily = FontFamily.Serif) },
+            title = { Text("本を削除", fontFamily = FontFamily.SansSerif) },
             text = {
                 Text(
                     "『${target.title}』と、この本の読書進捗・統計を端末から削除します。",
@@ -250,7 +250,7 @@ private fun LibraryHeader(
                 Text(
                     text = "縦",
                     color = Paper,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.Bold,
                     fontSize = 23.sp,
                 )
@@ -259,7 +259,7 @@ private fun LibraryHeader(
             Column(Modifier.weight(1f)) {
                 Text(
                     text = "縦読み",
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 29.sp,
                     letterSpacing = 1.sp,
@@ -278,7 +278,7 @@ private fun LibraryHeader(
                     contentColor = MaterialTheme.colorScheme.primary,
                 ),
             ) {
-                Icon(Icons.Outlined.Settings, contentDescription = "設定")
+                Icon(Icons.Outlined.Settings, contentDescription = "設定を開く")
             }
             Spacer(Modifier.width(6.dp))
             FilledTonalIconButton(
@@ -288,7 +288,7 @@ private fun LibraryHeader(
                     contentColor = MaterialTheme.colorScheme.primary,
                 ),
             ) {
-                Icon(Icons.Outlined.BarChart, contentDescription = "読書統計")
+                Icon(Icons.Outlined.BarChart, contentDescription = "読書統計を開く")
             }
             Spacer(Modifier.width(6.dp))
             FilledTonalIconButton(
@@ -301,13 +301,6 @@ private fun LibraryHeader(
                 Icon(Icons.Outlined.Add, contentDescription = "EPUBを追加")
             }
         }
-        Spacer(Modifier.height(18.dp))
-        Text(
-            text = "縦書きで、ゆっくり読む。",
-            fontFamily = FontFamily.Serif,
-            fontSize = 15.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 
@@ -355,7 +348,7 @@ private fun ContinueReadingCard(
                 Spacer(Modifier.height(3.dp))
                 Text(
                     text = book.title,
-                    fontFamily = FontFamily.Serif,
+                    fontFamily = FontFamily.SansSerif,
                     fontWeight = FontWeight.SemiBold,
                     fontSize = 18.sp,
                     maxLines = 1,
@@ -440,7 +433,7 @@ private fun BookCard(
         Spacer(Modifier.height(8.dp))
         Text(
             text = book.title,
-            fontFamily = FontFamily.Serif,
+            fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.Medium,
             fontSize = 14.sp,
             lineHeight = 19.sp,
@@ -545,7 +538,7 @@ private fun PlaceholderCover(title: String) {
                             } else {
                                 Text(
                                     text = ch.toString(),
-                                    fontFamily = FontFamily.Serif,
+                                    fontFamily = FontFamily.SansSerif,
                                     fontWeight = FontWeight.SemiBold,
                                     fontSize = 14.sp,
                                     lineHeight = 15.sp,
@@ -590,15 +583,15 @@ private fun EmptyLibrary(modifier: Modifier, onImport: () -> Unit) {
         }
         Spacer(Modifier.height(26.dp))
         Text(
-            text = "本棚はまだ空です",
-            fontFamily = FontFamily.Serif,
+            text = "まだ本がありません。",
+            fontFamily = FontFamily.SansSerif,
             fontWeight = FontWeight.SemiBold,
             fontSize = 24.sp,
             textAlign = TextAlign.Center,
         )
         Spacer(Modifier.height(10.dp))
         Text(
-            text = "EPUBファイルを追加すると、\n縦書きの組式で読めます。",
+            text = "EPUBファイルを追加するとここに配置されます。",
             fontSize = 13.sp,
             lineHeight = 21.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -654,7 +647,7 @@ private fun ImportOverlay(state: ImportUiState) {
                 Column {
                     Text(
                         text = "読み込み中…",
-                        fontFamily = FontFamily.Serif,
+                        fontFamily = FontFamily.SansSerif,
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
                     )
