@@ -9,7 +9,8 @@ local.properties
 captures/
 .externalNativeBuild/
 .cxx/
-.opencode/
+.opencode/*
+!.opencode/skills/
 *.hprof
 dist/*.apk
 dist/*.idsig
