@@ -1,11 +1,9 @@
 package app.tateyomi
 
 import app.tateyomi.data.BuiltInFonts
-import app.tateyomi.data.FontChoice
 import app.tateyomi.data.ManagedFont
-import app.tateyomi.data.effectiveFontId
-import app.tateyomi.data.fontDisplayName
 import app.tateyomi.data.ReaderSettings
+import app.tateyomi.data.fontDisplayName
 import app.tateyomi.reader.resolveFontSpec
 import java.io.File
 import org.junit.Assert.assertEquals
@@ -15,24 +13,8 @@ import org.junit.Test
 class FontsTest {
 
     @Test
-    fun legacyFontChoiceMapsToBuiltInId() {
-        assertEquals(
-            BuiltInFonts.GOTHIC_ID,
-            ReaderSettings(font = FontChoice.GOTHIC).effectiveFontId(),
-        )
-        assertEquals(
-            BuiltInFonts.MONOSPACE_ID,
-            ReaderSettings(font = FontChoice.MONOSPACE).effectiveFontId(),
-        )
-    }
-
-    @Test
-    fun explicitFontIdWinsOverLegacyChoice() {
-        val settings = ReaderSettings(
-            font = FontChoice.MINCHO,
-            fontId = "custom:test",
-        )
-        assertEquals("custom:test", settings.effectiveFontId())
+    fun readerSettingsUseBuiltInMinchoByDefault() {
+        assertEquals(BuiltInFonts.MINCHO_ID, ReaderSettings().fontId)
     }
 
     @Test

@@ -25,24 +25,7 @@ object BuiltInFonts {
     )
 
     fun find(id: String): ManagedFont? = all.firstOrNull { it.id == id }
-
-    fun idFor(choice: FontChoice): String = when (choice) {
-        FontChoice.MINCHO -> MINCHO_ID
-        FontChoice.GOTHIC -> GOTHIC_ID
-        FontChoice.MONOSPACE -> MONOSPACE_ID
-    }
-
-    fun choiceFor(id: String): FontChoice? = when (id) {
-        MINCHO_ID -> FontChoice.MINCHO
-        GOTHIC_ID -> FontChoice.GOTHIC
-        MONOSPACE_ID -> FontChoice.MONOSPACE
-        else -> null
-    }
 }
-
-/** The effective font for settings written before custom fonts existed. */
-fun ReaderSettings.effectiveFontId(): String =
-    fontId?.takeIf { it.isNotBlank() } ?: BuiltInFonts.idFor(font)
 
 fun fontDisplayName(fontId: String, fonts: List<ManagedFont>): String =
     BuiltInFonts.find(fontId)?.name

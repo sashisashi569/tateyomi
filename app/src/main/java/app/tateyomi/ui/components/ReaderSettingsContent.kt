@@ -66,7 +66,6 @@ import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.ReaderTheme
 import app.tateyomi.data.SpreadMode
-import app.tateyomi.data.effectiveFontId
 import app.tateyomi.data.fontDisplayName
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.ui.theme.ReaderPalette
@@ -107,7 +106,7 @@ fun ReaderSettingsContent(
         pendingExportPreset = null
         if (uri != null && preset != null) onExportPreset(preset, uri)
     }
-    val fontId = settings.effectiveFontId()
+    val fontId = settings.fontId
     val allFonts = remember(fonts) { BuiltInFonts.all + fonts }
 
     Column(modifier.fillMaxWidth()) {
@@ -405,13 +404,7 @@ fun ReaderSettingsContent(
             fontFileFor = fontFileFor,
             palette = palette,
             onSelect = { font ->
-                val builtInChoice = BuiltInFonts.choiceFor(font.id)
-                onChange(
-                    settings.copy(
-                        fontId = font.id,
-                        font = builtInChoice ?: settings.font,
-                    ),
-                )
+                onChange(settings.copy(fontId = font.id))
                 showFontDialog = false
             },
             onDismiss = { showFontDialog = false },

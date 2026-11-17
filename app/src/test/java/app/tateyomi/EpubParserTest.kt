@@ -361,6 +361,45 @@ class EpubParserTest {
     }
 
     @Test
+    fun streamsImagesToDirectoryWhenRequested() {
+        val epub = writeEpub(
+            mapOf(
+                "mimetype" to "application/epub+zip",
+                "META-INF/container.xml" to """
+                    <container xmlns="urn:oasis:names:tc:opendocument:xmlns:container" version="1.0">
+                      <rootfiles><rootfile full-path="OPS/content.opf"/></rootfiles>
+                    </container>
+                """.trimIndent(),
+                "OPS/content.opf" to """
+                    <package xmlns="http://www.idpf.org/2007/opf" version="3.0">
+                      <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+                        <dc:title>画像ストリームテスト</dc:title>
+                      </metadata>
+                      <manifest>
+                        <item id="text" href="text.xhtml" media-type="application/xhtml+xml"/>
+                        <item id="img" href="images/pic.png" media-type="image/png"/>
+                      </manifest>
+                      <spine><itemref idref="text"/></spine>
+                    </package>
+                """.trimIndent(),
+                "OPS/text.xhtml" to """
+                    <html><body><p>本文</p><p><img src="images/pic.png" alt="挿絵"/></p></body></html>
+                """.trimIndent(),
+                "OPS/images/pic.png" to pixelPng,
+            ),
+        )
+        val imageDir = temporaryFolder.newFolder("streamed-images")
+
+        val parsed = EpubParser.parse(epub, imageDir = imageDir)
+
+        assertEquals(0, parsed.images.size)
+        val files = imageDir.listFiles().orEmpty()
+        assertEquals(1, files.size)
+        assertTrue(files[0].isFile)
+        assertTrue(parsed.chapters[0].blocks.any { it is ImageBlock })
+    }
+
+    @Test
     fun rejectsNonZipFile() {
         val file = temporaryFolder.newFile("broken.epub")
         file.writeText("this is not an epub")

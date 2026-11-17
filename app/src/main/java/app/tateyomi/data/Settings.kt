@@ -4,13 +4,6 @@ import kotlinx.serialization.Serializable
 import kotlin.math.roundToInt
 
 @Serializable
-enum class FontChoice {
-    MINCHO,
-    GOTHIC,
-    MONOSPACE,
-}
-
-@Serializable
 enum class ReaderTheme {
     PAPER,
     WHITE,
@@ -55,8 +48,7 @@ data class ReaderSettings(
     val lineSpacing: Float = 1.5f,
     val indent: Int = 1,
     val marginDp: Int = 20,
-    val font: FontChoice = FontChoice.MINCHO,
-    val fontId: String? = null,
+    val fontId: String = BuiltInFonts.MINCHO_ID,
     val theme: ReaderTheme = ReaderTheme.PAPER,
     val spread: SpreadMode = SpreadMode.AUTO,
     val spreadGapDp: Int = 0,
@@ -99,7 +91,6 @@ data class ReaderSettings(
             lineSpacing = 1.5f,
             indent = 1,
             marginDp = 16,
-            font = FontChoice.MINCHO,
         )
 
         val Tandoku = ReaderSettings(
@@ -109,7 +100,6 @@ data class ReaderSettings(
             lineSpacing = 1.5f,
             indent = 1,
             marginDp = 24,
-            font = FontChoice.MINCHO,
         )
 
         val LargePrint = ReaderSettings(
@@ -119,7 +109,7 @@ data class ReaderSettings(
             lineSpacing = 1.6f,
             indent = 1,
             marginDp = 18,
-            font = FontChoice.GOTHIC,
+            fontId = BuiltInFonts.GOTHIC_ID,
         )
 
         val Horizontal = ReaderSettings(
@@ -129,7 +119,6 @@ data class ReaderSettings(
             lineSpacing = 1.7f,
             indent = 1,
             marginDp = 20,
-            font = FontChoice.MINCHO,
         )
     }
 }
@@ -149,11 +138,31 @@ fun ReaderSettings.usesSpread(landscape: Boolean): Boolean = when (spread) {
 }
 
 @Serializable
+enum class ArchiveFolderMode {
+    /** Ask for every bulk archive. */
+    ASK,
+    /** Always use a folder named after the archive. */
+    ALWAYS,
+    /** Never create an archive folder. */
+    NEVER,
+}
+
+@Serializable
+data class ImportOptions(
+    /** Expand archives that contain multiple book files. */
+    val expandArchives: Boolean = true,
+    /** What to do with the archive-name folder for bulk imports. */
+    val archiveFolderMode: ArchiveFolderMode = ArchiveFolderMode.ASK,
+)
+
+@Serializable
 data class AppSettings(
     val reader: ReaderSettings = ReaderSettings.Default,
     val presets: List<ReaderPreset> = emptyList(),
     val fonts: List<ManagedFont> = emptyList(),
     val appearance: AppearanceSettings = AppearanceSettings(),
+    val importOptions: ImportOptions = ImportOptions(),
+    val librarySort: LibrarySort = LibrarySort.RECENT,
 )
 
 data class BuiltInPreset(

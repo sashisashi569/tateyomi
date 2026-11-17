@@ -1,11 +1,18 @@
 package app.tateyomi
 
+import app.tateyomi.data.ArchiveFolderMode
+import app.tateyomi.data.ImportOptions
 import app.tateyomi.data.ReaderSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsTest {
+
+    @Test
+    fun bulkImportAsksForArchiveFolderByDefault() {
+        assertEquals(ArchiveFolderMode.ASK, ImportOptions().archiveFolderMode)
+    }
 
     @Test
     fun marginRangeIsZeroTo168() {

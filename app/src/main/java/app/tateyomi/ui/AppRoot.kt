@@ -40,6 +40,8 @@ import app.tateyomi.ui.theme.TateyomiTheme
 fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
     val screen by viewModel.screen.collectAsStateWithLifecycle()
     val library by viewModel.library.collectAsStateWithLifecycle()
+    val folders by viewModel.folders.collectAsStateWithLifecycle()
+    val libraryFilter by viewModel.libraryFilter.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val readerState by viewModel.readerState.collectAsStateWithLifecycle()
@@ -47,6 +49,9 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
     val fontBusy by viewModel.fontBusy.collectAsStateWithLifecycle()
     val backupBusy by viewModel.backupBusy.collectAsStateWithLifecycle()
     val ready by viewModel.ready.collectAsStateWithLifecycle()
+    val importBookConflict by viewModel.importBookConflict.collectAsStateWithLifecycle()
+    val importFolderConflict by viewModel.importFolderConflict.collectAsStateWithLifecycle()
+    val importArchiveFolderChoice by viewModel.importArchiveFolderChoice.collectAsStateWithLifecycle()
 
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) {
@@ -99,6 +104,8 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                 when (val current = screen) {
                     is Screen.Library -> LibraryScreen(
                         books = library,
+                        folders = folders,
+                        filter = libraryFilter,
                         ready = ready,
                         importState = importState,
                         coverFile = viewModel::coverFile,
@@ -107,6 +114,21 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                         onOpenStats = viewModel::openStats,
                         onOpenSettings = viewModel::openSettings,
                         onDeleteBook = viewModel::deleteBook,
+                        onDeleteBooks = viewModel::deleteBooks,
+                        onCreateFolder = viewModel::createFolder,
+                        onRenameFolder = viewModel::renameFolder,
+                        onDeleteFolder = viewModel::deleteFolder,
+                        onMoveBook = viewModel::moveBook,
+                        onMoveBooks = viewModel::moveBooks,
+                        onCreateFolderAndMove = viewModel::createFolderAndMove,
+                        onCreateFolderAndMoveBooks = viewModel::createFolderAndMoveBooks,
+                        onUpdateBook = viewModel::updateBookDetails,
+                        onUpdateTags = viewModel::updateTagsOnBooks,
+                        onResetProgress = viewModel::resetBookProgress,
+                        onSetCover = viewModel::setBookCover,
+                        onResetCover = viewModel::resetBookCover,
+                        onExportBook = viewModel::exportBook,
+                        onFilterChange = viewModel::updateLibraryFilter,
                     )
                     is Screen.Reader -> ReaderScreen(
                         viewModel = viewModel,
@@ -135,6 +157,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                         onDeleteFont = viewModel::deleteFont,
                         onExportBackup = viewModel::exportBackup,
                         onImportBackup = viewModel::importBackup,
+                        onImportOptionsChange = viewModel::updateImportOptions,
                     )
                 }
 
@@ -145,6 +168,25 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                         .navigationBarsPadding(),
                 )
+
+                importArchiveFolderChoice?.let { choice ->
+                    ImportArchiveFolderDialog(
+                        choice = choice,
+                        onResolve = viewModel::resolveImportArchiveFolderChoice,
+                    )
+                }
+                importBookConflict?.let { conflict ->
+                    ImportBookConflictDialog(
+                        conflict = conflict,
+                        onResolve = viewModel::resolveImportBookConflict,
+                    )
+                }
+                importFolderConflict?.let { conflict ->
+                    ImportFolderConflictDialog(
+                        conflict = conflict,
+                        onResolve = viewModel::resolveImportFolderConflict,
+                    )
+                }
             }
         }
     }

@@ -39,7 +39,12 @@ private val BLOCK_IMAGE_CONTAINERS = setOf(
     "div", "figure", "section", "article", "main", "aside", "body",
 )
 
-private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp")
+private val IMAGE_EXTENSIONS = setOf("jpg", "jpeg", "png", "gif", "webp", "bmp")
+
+/** Reads a resource from an EPUB zip or from an in-memory HTML source. */
+internal fun interface MarkupResourceSource {
+    fun read(path: String, maxBytes: Long): ByteArray?
+}
 
 private fun Element.localName(): String = tagName().substringAfterLast(':').lowercase()
 
@@ -49,7 +54,7 @@ private fun Element.childElements(name: String): List<Element> =
 private fun Element.elementsNamed(name: String): List<Element> =
     allElements.filter { it.localName() == name }
 
-private fun imageExtension(path: String, bytes: ByteArray): String? {
+internal fun imageExtension(path: String, bytes: ByteArray): String? {
     val ext = path.substringAfterLast('.', "").lowercase()
     if (ext in IMAGE_EXTENSIONS) return if (ext == "jpeg") "jpg" else ext
     return sniffImage(bytes)
@@ -67,6 +72,9 @@ private fun sniffImage(bytes: ByteArray): String? {
         bytes[8] == 'W'.code.toByte() && bytes[9] == 'E'.code.toByte() &&
         bytes[10] == 'B'.code.toByte() && bytes[11] == 'P'.code.toByte()
     ) return "webp"
+    if (bytes.size >= 2 && bytes[0] == 'B'.code.toByte() && bytes[1] == 'M'.code.toByte()) {
+        return "bmp"
+    }
     return null
 }
 
@@ -90,7 +98,13 @@ data class ParsedEpub(
     val coverBytes: ByteArray? = null,
     val coverExtension: String? = null,
     val coverImageName: String? = null,
+    /** Cover image already on disk when the parser streamed it directly. */
+    val coverImageFile: File? = null,
     val images: Map<String, ByteArray> = emptyMap(),
+    /** Images already written to the import work directory. */
+    val imageFiles: Map<String, File> = emptyMap(),
+    val format: BookFormat = BookFormat.EPUB,
+    val suggestedTags: List<String> = emptyList(),
 )
 
 /**
@@ -102,10 +116,21 @@ data class ParsedEpub(
  */
 object EpubParser {
 
-    fun parse(file: File): ParsedEpub {
+    fun parse(
+        file: File,
+        fallbackTitle: String? = null,
+        imageDir: File? = null,
+    ): ParsedEpub {
         if (!file.isFile) throw EpubException("ファイルが見つかりません")
         return try {
-            ZipFile(file).use { zip -> parseZip(zip, file.nameWithoutExtension) }
+            ZipFile(file).use { zip ->
+                parseZip(
+                    zip = zip,
+                    fallbackTitle = fallbackTitle?.takeIf { it.isNotBlank() }
+                        ?: file.nameWithoutExtension,
+                    imageDir = imageDir,
+                )
+            }
         } catch (e: EpubException) {
             throw e
         } catch (e: Exception) {
@@ -113,7 +138,11 @@ object EpubParser {
         }
     }
 
-    private fun parseZip(zip: ZipFile, fallbackTitle: String): ParsedEpub {
+    private fun parseZip(
+        zip: ZipFile,
+        fallbackTitle: String,
+        imageDir: File? = null,
+    ): ParsedEpub {
         val containerBytes = readEntry(zip, "META-INF/container.xml", 1024 * 1024)
             ?: throw EpubException("EPUBのcontainer.xmlが見つかりません")
         val container = parseXml(containerBytes)
@@ -172,15 +201,27 @@ object EpubParser {
         var imageBytes = 0L
         val parsedChapters = ArrayList<Chapter>(spine.size)
         val chapterPaths = ArrayList<String>(spine.size)
+        var totalChars = 0
+        val source = MarkupResourceSource { path, maxBytes -> readEntry(zip, path, maxBytes) }
+        val storedImageNames = mutableSetOf<String>()
+        val imageSink: ((String, ByteArray) -> Unit)? = imageDir?.let { dir ->
+            dir.mkdirs()
+            val sink: (String, ByteArray) -> Unit = { name, bytes ->
+                File(dir, name).writeBytes(bytes)
+            }
+            sink
+        }
 
         spine.forEachIndexed { index, item ->
             val extractor = ChapterExtractor(
                 chapterPath = item.path,
-                zip = zip,
+                source = source,
                 images = images,
                 imageNames = imageNames,
                 imageByteBudget = { imageBytes },
                 onImageBytes = { imageBytes += it },
+                imageSink = imageSink,
+                storedImageNames = storedImageNames,
             )
             val chapter = if (isMarkup(item)) {
                 val bytes = readEntry(zip, item.path, MAX_TEXT_BYTES) ?: ByteArray(0)
@@ -206,6 +247,10 @@ object EpubParser {
                 .ifBlank { "第${index + 1}章" }
             parsedChapters += chapter.copy(title = finalTitle)
             chapterPaths += item.path
+            totalChars += chapter.charCount
+            if (totalChars > MAX_IMPORT_CHARS) {
+                throw EpubException("本文が大きすぎて読み込めません")
+            }
         }
 
         // Cover pages and other empty scaffolding only produce a blank page in
@@ -662,13 +707,17 @@ object EpubParser {
             this == ' ' || this == '\u3000' || this == '\t' || this == '\n' || this == '\r' || this == '\u000C'
     }
 
-    private class ChapterExtractor(
+    internal class ChapterExtractor(
         private val chapterPath: String,
-        private val zip: ZipFile,
+        private val source: MarkupResourceSource,
         private val images: MutableMap<String, ByteArray>,
         private val imageNames: MutableMap<String, String>,
         private val imageByteBudget: () -> Long,
         private val onImageBytes: (Long) -> Unit,
+        /** When set, image bytes are handed to this callback instead of kept in memory. */
+        private val imageSink: ((String, ByteArray) -> Unit)? = null,
+        /** Shared by extractors using [imageSink] to avoid writing the same image twice. */
+        private val storedImageNames: MutableSet<String> = mutableSetOf(),
     ) {
         private val blocks = mutableListOf<Block>()
         private var buffer = InlineBuilder()
@@ -695,7 +744,7 @@ object EpubParser {
         fun extractImageOnly(path: String): Chapter {
             if (imageByteBudget() > MAX_TOTAL_IMAGE_BYTES) return Chapter()
             val bytes = try {
-                readEntry(zip, path, MAX_IMAGE_BYTES)
+                source.read(path, MAX_IMAGE_BYTES)
             } catch (_: Exception) {
                 null
             } ?: return Chapter()
@@ -703,10 +752,7 @@ object EpubParser {
             val name = imageNames.getOrPut("path:$path") {
                 "${digest(bytes)}.$extension"
             }
-            if (name !in images) {
-                images[name] = bytes
-                onImageBytes(bytes.size.toLong())
-            }
+            storeImage(name, bytes)
             return Chapter(
                 blocks = listOf(ImageBlock(name, alt = path.substringAfterLast('/'))),
                 charCount = 0,
@@ -991,7 +1037,7 @@ object EpubParser {
                 val existing = imageNames[path]
                 if (existing != null) return LoadedImage(existing, alt)
                 bytes = try {
-                    readEntry(zip, path, MAX_IMAGE_BYTES)
+                    source.read(path, MAX_IMAGE_BYTES)
                 } catch (_: Exception) {
                     null
                 } ?: return null
@@ -1004,11 +1050,20 @@ object EpubParser {
                 imageNames[cacheKey] = n
                 n
             }
-            if (name !in images) {
-                images[name] = bytes
-                onImageBytes(bytes.size.toLong())
-            }
+            storeImage(name, bytes)
             return LoadedImage(name, alt)
+        }
+
+        private fun storeImage(name: String, bytes: ByteArray) {
+            if (name in images || name in storedImageNames) return
+            val sink = imageSink
+            if (sink != null) {
+                sink(name, bytes)
+                storedImageNames += name
+            } else {
+                images[name] = bytes
+            }
+            onImageBytes(bytes.size.toLong())
         }
     }
 }

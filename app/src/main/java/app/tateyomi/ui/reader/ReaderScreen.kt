@@ -84,7 +84,6 @@ import app.tateyomi.data.AppSettings
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
-import app.tateyomi.data.effectiveFontId
 import app.tateyomi.data.usesSpread
 import app.tateyomi.data.ReadingProgress
 import app.tateyomi.reader.ReaderFontSpec
@@ -129,7 +128,7 @@ fun ReaderScreen(
         )
         is ReaderUiState.Ready -> {
             val readerSettings = appSettings.reader
-            val fontId = readerSettings.effectiveFontId()
+            val fontId = readerSettings.fontId
             val fontSpec = remember(fontId, appSettings.fonts) {
                 resolveFontSpec(fontId, appSettings.fonts, viewModel::fontFile)
             }

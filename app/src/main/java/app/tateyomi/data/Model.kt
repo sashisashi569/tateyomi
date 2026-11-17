@@ -12,6 +12,25 @@ data class ReadingProgress(
     val updatedAt: Long = 0L,
 )
 
+/** File type of the stored source. */
+@Serializable
+enum class BookFormat {
+    EPUB,
+    XHTML,
+    CBZ,
+    CBR,
+    MOBI,
+    AZW3,
+    SEVEN_Z,
+}
+
+@Serializable
+data class LibraryFolder(
+    val id: String,
+    val name: String,
+    val createdAt: Long = 0L,
+)
+
 @Serializable
 data class BookSummary(
     val id: String,
@@ -23,6 +42,11 @@ data class BookSummary(
     val addedAt: Long = 0L,
     val lastOpenedAt: Long? = null,
     val progress: ReadingProgress? = null,
+    val folderId: String? = null,
+    val tags: List<String> = emptyList(),
+    val format: BookFormat = BookFormat.EPUB,
+    /** Name of the original file inside the book directory. */
+    val sourceFile: String = "source.epub",
 ) {
     val percent: Int
         get() = ((progress?.overallFraction ?: 0f) * 100f).toInt().coerceIn(0, 100)
@@ -123,6 +147,51 @@ enum class BlockStyle {
 /** Used for the on-disk library index. */
 @Serializable
 data class LibraryFile(
-    val version: Int = 1,
+    val version: Int = 2,
     val books: List<BookSummary> = emptyList(),
+    val folders: List<LibraryFolder> = emptyList(),
 )
+
+/** Keeps generated TOC sheets usable for dictionaries and image-heavy books. */
+const val MAX_GENERATED_TOC_ENTRIES = 2000
+
+/** Guards against importing text that cannot fit comfortably in the reader. */
+const val MAX_IMPORT_CHARS = 10_000_000
+
+/** UI-independent normalization for tags entered by the user. */
+fun sanitizeTags(tags: List<String>): List<String> = tags
+    .map { it.trim().take(24) }
+    .filter { it.isNotEmpty() }
+    .distinct()
+    .take(20)
+
+fun parseTagInput(input: String): List<String> =
+    sanitizeTags(input.split(',', '、', '\n', '\t').map { it.trim() })
+
+private fun normalizedBookPart(value: String): String =
+    value.trim().replace(Regex("[\\s\\u3000]+"), "").lowercase()
+
+/**
+ * A stable identity for import conflict detection. Titles must match and
+ * authors must match when both are present; a missing author does not match a
+ * named author.
+ */
+fun sameBookIdentity(
+    titleA: String,
+    authorA: String,
+    titleB: String,
+    authorB: String,
+): Boolean {
+    if (normalizedBookPart(titleA) != normalizedBookPart(titleB)) return false
+    val leftAuthor = normalizedBookPart(authorA)
+    val rightAuthor = normalizedBookPart(authorB)
+    return leftAuthor == rightAuthor
+}
+
+fun findDuplicateBook(
+    books: List<BookSummary>,
+    title: String,
+    author: String,
+): BookSummary? = books.firstOrNull { book ->
+    sameBookIdentity(book.title, book.author, title, author)
+}

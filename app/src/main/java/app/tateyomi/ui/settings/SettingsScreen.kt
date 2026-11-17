@@ -42,6 +42,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,13 +73,14 @@ import androidx.activity.compose.BackHandler
 import app.tateyomi.data.AppSettings
 import app.tateyomi.data.AppThemeMode
 import app.tateyomi.data.AppearanceSettings
+import app.tateyomi.data.ArchiveFolderMode
 import app.tateyomi.data.BookSummary
 import app.tateyomi.data.BuiltInFonts
+import app.tateyomi.data.ImportOptions
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.ReadingStats
-import app.tateyomi.data.effectiveFontId
 import app.tateyomi.reader.resolveFontSpec
 import app.tateyomi.ui.components.FontSample
 import app.tateyomi.ui.components.ReaderSettingsContent
@@ -92,6 +94,7 @@ private const val PAGE_DISPLAY = 1
 private const val PAGE_FONTS = 2
 private const val PAGE_ABOUT = 3
 private const val PAGE_BACKUP = 4
+private const val PAGE_IMPORT = 5
 
 @Composable
 fun SettingsScreen(
@@ -111,6 +114,7 @@ fun SettingsScreen(
     onDeleteFont: (String) -> Unit,
     onExportBackup: (Uri) -> Unit,
     onImportBackup: (Uri) -> Unit,
+    onImportOptionsChange: (ImportOptions) -> Unit,
 ) {
     var page by rememberSaveable { mutableIntStateOf(PAGE_HOME) }
     val title = when (page) {
@@ -118,6 +122,7 @@ fun SettingsScreen(
         PAGE_FONTS -> "フォントマネージャー"
         PAGE_ABOUT -> "アプリ情報"
         PAGE_BACKUP -> "バックアップ"
+        PAGE_IMPORT -> "取り込み"
         else -> "設定"
     }
 
@@ -162,6 +167,10 @@ fun SettingsScreen(
                 onExport = onExportBackup,
                 onImport = onImportBackup,
             )
+            PAGE_IMPORT -> ImportSettingsPage(
+                options = settings.importOptions,
+                onChange = onImportOptionsChange,
+            )
             else -> SettingsHome(
                 appearance = settings.appearance,
                 onAppearanceChange = onAppearanceChange,
@@ -169,6 +178,7 @@ fun SettingsScreen(
                 onOpenFonts = { page = PAGE_FONTS },
                 onOpenAbout = { page = PAGE_ABOUT },
                 onOpenBackup = { page = PAGE_BACKUP },
+                onOpenImport = { page = PAGE_IMPORT },
             )
         }
     }
@@ -203,6 +213,7 @@ private fun SettingsHome(
     onOpenFonts: () -> Unit,
     onOpenAbout: () -> Unit,
     onOpenBackup: () -> Unit,
+    onOpenImport: () -> Unit,
 ) {
     Column(
         Modifier
@@ -229,6 +240,13 @@ private fun SettingsHome(
             title = "バックアップ",
             subtitle = "プリセット・読書統計のJSON",
             onClick = onOpenBackup,
+        )
+        Spacer(Modifier.height(12.dp))
+        SettingsMenuRow(
+            icon = { Icon(Icons.Outlined.Download, contentDescription = null) },
+            title = "取り込み",
+            subtitle = "圧縮ファイル・フォルダ",
+            onClick = onOpenImport,
         )
         Spacer(Modifier.height(12.dp))
         SettingsMenuRow(
@@ -319,6 +337,115 @@ private fun SettingsHome(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 4.dp),
         )
+    }
+}
+
+@Composable
+private fun ImportSettingsPage(
+    options: ImportOptions,
+    onChange: (ImportOptions) -> Unit,
+) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(18.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 1.dp,
+        ) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 6.dp)) {
+                ImportOptionRow(
+                    title = "圧縮ファイルを一括展開",
+                    subtitle = "ZIP・RAR・7z形式の本をまとめて追加します。",
+                    checked = options.expandArchives,
+                    onCheckedChange = { onChange(options.copy(expandArchives = it)) },
+                )
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                Column(Modifier.padding(vertical = 12.dp)) {
+                    Text(
+                        text = "一括追加時のフォルダ",
+                        fontFamily = FontFamily.SansSerif,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp,
+                    )
+                    Text(
+                        text = "一括追加した本をフォルダに分けるかを選びます。フォルダ名は追加時に変更できます。",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(10.dp))
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        ArchiveFolderMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                selected = options.archiveFolderMode == mode,
+                                onClick = {
+                                    onChange(options.copy(archiveFolderMode = mode))
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(
+                                    index = index,
+                                    count = ArchiveFolderMode.entries.size,
+                                ),
+                            ) {
+                                Text(
+                                    text = when (mode) {
+                                        ArchiveFolderMode.ASK -> "毎回確認"
+                                        ArchiveFolderMode.ALWAYS -> "常に作成"
+                                        ArchiveFolderMode.NEVER -> "作成しない"
+                                    },
+                                    fontSize = 12.sp,
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        text = "同名フォルダがある場合は、統合するか確認します。",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
+            }
+        }
+        Text(
+            text = "共有メニューから追加した場合にも適用されます。",
+            fontSize = 10.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 4.dp, top = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun ImportOptionRow(
+    title: String,
+    subtitle: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(
+                text = title,
+                fontFamily = FontFamily.SansSerif,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 16.sp,
+            )
+            Text(
+                text = subtitle,
+                fontSize = 10.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 
@@ -434,7 +561,7 @@ private fun FontManagerPage(
     }
     var pendingDelete by remember { mutableStateOf<ManagedFont?>(null) }
     val fonts = BuiltInFonts.all + settings.fonts
-    val activeId = settings.reader.effectiveFontId()
+    val activeId = settings.reader.fontId
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -826,7 +953,8 @@ private fun AppInfoPage() {
 
         InfoSection(title = "アプリについて") {
             InfoRow("パッケージ", context.packageName)
-            InfoRow("対応形式", "EPUB 2 / EPUB 3（リフロー）")
+            InfoRow("対応形式", "EPUB 2 / EPUB 3、XHTML、CBZ / CBR、MOBI / AZW3")
+            InfoRow("一括追加", "ZIP / RAR / 7z")
             InfoRow("組方向", "縦書き / 横書き")
             InfoRow("フォント", "標準フォント + 追加フォント")
             InfoRow("保存先", "アプリ専用領域")
@@ -844,7 +972,7 @@ private fun AppInfoPage() {
 
         InfoSection(title = "オープンソース") {
             Text(
-                text = "アプリ本体: AGPL-3.0\nKotlin / Jetpack Compose / kotlinx.serialization / Jsoup",
+                text = "アプリ本体: AGPL-3.0\nKotlin / Jetpack Compose / kotlinx.serialization / Jsoup / unrar5j / Apache Commons Compress",
                 fontSize = 12.sp,
                 lineHeight = 19.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,

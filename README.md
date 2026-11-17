@@ -1,6 +1,7 @@
 # 縦読み — Tateyomi
 
-縦書きの組式で読むための Android 向けリフロー EPUB リーダーです。
+縦書きの組式で読むための Android 向けリーダーです。EPUB / XHTML /
+CBZ / CBR / Kindle（MOBI・AZW3）に対応します。
 WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本語縦組の
 レンダラーを実装しています。
 
@@ -40,11 +41,18 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 
 ## 主な機能
 
-- **リフロー EPUB 2 / EPUB 3 の取り込み**（SAF。複数選択可）
-  - OPF / spine / EPUB3 nav / EPUB2 NCX / 表紙 / 画像 / ルビ / 見出し / 強調
-  - `<svg><image>` 形式の口絵・挿絵ページも画像として取り込み
-  - 外字などの本文中インライン画像を文字セルとして取り込み
-  - 固定レイアウトの画像だけの spine にも対応（1ページ画像として表示）
+- **対応形式**（SAF。複数選択可）
+  - リフロー EPUB 2 / EPUB 3
+    - OPF / spine / EPUB3 nav / EPUB2 NCX / 表紙 / 画像 / ルビ / 見出し / 強調
+    - `<svg><image>` 形式の口絵・挿絵ページも画像として取り込み
+    - 外字などの本文中インライン画像を文字セルとして取り込み
+    - 固定レイアウトの画像だけの spine にも対応（1ページ画像として表示）
+  - XHTML / HTML（青空文庫など）。HTMLと画像を含むZIPにも対応
+  - CBZ / CBR / ZIP / RAR（画像だけの漫画アーカイブ）
+    - ファイル名の数字を考慮してページ順を揃える
+    - `ComicInfo.xml` のシリーズ名・巻数・著者を読み取る
+  - MOBI / PRC / AZW / AZW3（Kindle、DRMなし）
+    - PalmDOC / HUFF-CDIC 圧縮、KF8 の本文再構成、表紙・挿絵の抽出
 - **縦書き・横書きの組式レンダリング**
   - 字数（1行／1列の文字数）、行数（1ページの行数／列数）、行間、字下げ、余白、フォント
   - 文字サイズは字数・行数・行間から自動計算し、端末の表示領域に収まらない場合は自動縮小
@@ -68,8 +76,20 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - 現在の設定を名前付きで保存・削除
   - 組方向の切り替え時は、縦横それぞれに適した字数・行数へ自動調整
 - **ライブラリ**
-  - 表紙付きグリッド、続きから読むカード、長押し削除
-  - 表紙がない EPUB はタイトルから縦書き風の表紙を自動生成
+  - 表紙付きグリッド、続きから読むカード
+  - フォルダ、タグ、書名・著者・タグの検索、タグ絞り込み
+  - 並び替え：更新が新しい順、追加日、書名、著者（昇順・降順）。選んだ順は次回起動時も保持
+  - 複数選択：まとめて移動、タグ編集、削除
+  - フォルダを開いた状態で追加すると、そのフォルダに直接取り込む
+  - 「続きから読む」はフォルダごとに最後に読んだ本を表示
+  - 他のアプリの共有メニューから本を取り込み（複数ファイル可）
+  - ZIP / RAR / 7z 内の本を一括追加
+  - 一括追加時にフォルダ名を確認（毎回・常に・作成しない）
+  - 同じ本を追加するときは置き換え／キャンセルを選択
+  - 長押しメニュー：選択、移動、書き出し、編集、読書進捗のリセット、削除
+  - 編集では書名・著者・タグ・表紙を変更
+  - 読書進捗のリセットと削除は確認ダイアログを表示
+  - 表紙がない本はタイトルから縦書き風の表紙を自動生成
 - **読書進捗の保存**
   - 章インデックス + 章内位置（組式を変えても同じ場所へ復帰）
   - アプリ再起動後も復帰
@@ -84,8 +104,10 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
   - **表示設定**：組方向、見開き（モード・ページ間余白・表紙スキップ）、字数・行数・行間・ルビサイズ・字下げ・余白（0〜168dp）、フォント、紙面テーマ、プリセット
   - リーダーの「表示」シートと設定画面の「表示設定」は同じ編集画面を共有
   - **フォントマネージャー**：フォント一覧、TTF / OTF / TTC の追加・削除
+  - **取り込み**：圧縮ファイルの一括展開、フォルダ作成の確認方法
   - **アプリ情報**：バージョン、対応形式、プライバシー、オープンソース
   - **バックアップ**：プリセット・読書進捗・読書統計を1つのJSONに書き出し／読み込み
+    - フォルダとタグはバックアップに含みません
     - 各カスタムプリセットの共有ボタンから、プリセット単体のJSONも書き出し可能
     - 読み込み時、プリセットは同名を上書き、統計は現在値と合算
     - 読書進捗は書籍ID、またはタイトル・著者で照合し、更新日時が新しい方を採用
@@ -107,7 +129,14 @@ WebView や既存の EPUB ビューアを使わず、Compose Canvas 上に日本
 | 下部バー | 目次、表示設定、ページスライダー。操作がなければ4秒で自動的に隠れます |
 | 表示設定 | リーダーのシートは閉じたときに適用／設定画面は変更を即時保存 |
 | 本棚右上の歯車 | 設定（表示設定 / フォントマネージャー / アプリ情報） |
-| 本棚の本 | タップで開く／長押しで削除 |
+| 他のアプリの共有メニュー | 「縦読み」を選ぶと本棚へ取り込む |
+| 本棚の検索欄 | 書名・著者・タグで絞り込む |
+| フォルダ・タグのチップ | 選択して絞り込む。タグは複数選択可 |
+| 並び替え | 更新・追加日・書名・著者で並べ替える。選択は保存される |
+| 設定 > 取り込み | 一括展開と、アーカイブ名フォルダの確認方法を切り替える |
+| 選択 | 複数選択モードに入る。本をタップして選択 |
+| 選択中の下部バー | まとめて移動・タグ編集・削除 |
+| 本棚の本 | タップで開く／長押しでメニュー（選択・移動・書き出し・編集・進捗リセット・削除） |
 
 ## 開発環境
 
@@ -136,10 +165,10 @@ gradle assembleRelease      # 署名なし release APK（R8 有効）
 adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.6-debugsigned.apk`
+ビルド済みの R8 リリース APK はローカルの `dist/tateyomi-0.0.17-debugsigned.apk`
 に生成しています（ローカルの debug keystore で署名したテスト用。ストア配布用
 ではありません）。APK などのビルド成果物は Git 管理外です。
-この APK に EPUB は同梱されていません。本棚の「EPUBを追加」から取り込んでください。
+この APK に本は同梱されていません。本棚の「本を追加」から取り込んでください。
 
 ## アーキテクチャ
 
@@ -147,11 +176,15 @@ adb install -r app/build/outputs/apk/debug/app-debug.apk
 app/src/main/java/app/tateyomi/
 ├── data/
 │   ├── EpubParser.kt       EPUB 2/3 のテキスト・ルビ・画像・目次抽出
-│   ├── AppRepository.kt    取り込み、JSON 永続化、進捗・設定・統計
+│   ├── XhtmlParser.kt      XHTML / HTML と HTML入りZIPの抽出
+│   ├── ComicArchiveParser.kt  CBZ / CBR / ZIP / RAR の画像ページ抽出
+│   ├── KindleParser.kt     MOBI / PRC / AZW / AZW3（PalmDOC・HUFF-CDIC・KF8）
+│   ├── ArchiveExtractor.kt ZIP / RAR / 7z の一括展開
+│   ├── AppRepository.kt    取り込み、JSON 永続化、フォルダ・タグ・進捗・設定・統計
 │   ├── CoverGenerator.kt   表紙の正規化とプレースホルダー生成
 │   ├── Fonts.kt            フォント定義（端末フォント・追加フォント・有効ID）
 │   ├── FontMetadata.kt     OpenType/TrueType の name テーブルから書体名を取得
-│   ├── Model.kt            書籍・章・ブロック・目次・進捗
+│   ├── Model.kt            書籍・フォルダ・章・ブロック・目次・進捗
 │   ├── Settings.kt         組式設定とプリセット
 │   └── Stats.kt            読書統計
 ├── reader/
@@ -161,7 +194,7 @@ app/src/main/java/app/tateyomi/
 │   ├── ReaderTypefaces.kt  端末フォント・追加フォントの Typeface キャッシュ
 │   └── ...
 ├── ui/
-│   ├── MainViewModel.kt    画面状態、読書セッション、進捗保存、フォント管理
+│   ├── MainViewModel.kt    画面状態、読書セッション、本棚操作、進捗保存、フォント管理
 │   ├── AppRoot.kt          画面遷移、Snackbar、ライフサイクル
 │   ├── library/            本棚
 │   ├── reader/             Pager、Canvas 描画、目次・設定シート
@@ -195,18 +228,22 @@ app/src/main/java/app/tateyomi/
 アプリ専用領域 `filesDir/tateyomi/` 以下です。
 
 ```
-library.json                  本棚インデックス
+library.json                  本棚インデックス（フォルダ・タグ・形式を含む）
 settings.json                 組式設定・プリセット・フォント一覧
 stats.json                    読書統計
 fonts/<uuid>.<ttf|otf|ttc>    追加したフォント
-books/<uuid>/source.epub      取り込んだ EPUB 原本
+books/<uuid>/source.<ext>     取り込んだ原本（epub / xhtml / cbz / cbr / mobi / azw3 など）
 books/<uuid>/content.json     抽出済み本文（章・ブロック・ルビ・アンカー）
 books/<uuid>/cover.jpg        正規化した表紙
 books/<uuid>/images/<hash>    本文画像
 ```
 
-EPUB は取り込み時にアプリ領域へコピーします。元ファイルを移動・削除しても
-読めます。本を削除すると上記ディレクトリと統計からも削除します。
+開発版（0.0.x）の間は後方互換を持ちません。`settings.json` の項目名や形式を
+変えた場合、旧設定は読み込まずに既定値から始まります。
+
+本は取り込み時にアプリ領域へコピーします。元ファイルを移動・削除しても
+読めます。本を削除すると上記ディレクトリと統計からも削除します。長押しメニューの
+「書き出す」は取り込んだ原本をそのまま書き出します。
 追加フォントもアプリ領域へコピーするため、元ファイルを削除しても使用できます。
 フォントファイルが見つからない場合は一覧から除外し、使用中なら明朝へ戻します。
 
@@ -221,18 +258,27 @@ gradle testDebugUnitTest
 - `ReaderLayoutTest`：字数・行数・禁則・ルビ分割・ページ/進捗の往復
 - `ReaderMetricsTest`：行数・行間を保った自動縮小、行ピッチ、余白の比例スケーリング
 - `VerticalGlyphsTest`：省略記号・ダッシュ類の縦組み回転判定
-- `FontsTest`：端末フォントIDと旧設定の互換、追加フォントの解決・フォールバック
+- `FontsTest`：端末フォントIDの解決、追加フォントの解決・フォールバック
 - `FontMetadataTest`：フォントでないファイルの書体名解析
-- `AppearanceTest`：カラーテーマ／AMOLED の既定値・保存形式・旧設定との互換
+- `AppearanceTest`：カラーテーマ／AMOLED の既定値・保存形式
 - `SpreadTest`：自動／単ページ／見開きの判定、ページペアと端数ページ
 - `BackupTest`：プリセットの同名マージ、読書進捗の照合・新しい方の採用、統計の単調マージ、JSON往復
 - `SettingsTest`：余白範囲・ルビサイズ係数・表紙スキップ既定値の正規化
 - `EpubParserTest`：合成 EPUB（ルビ、画像、SVG挿絵、外字インライン画像、名前空間付き OPF、固定レイアウト画像 spine）
+- `XhtmlParserTest`：青空文庫風XHTMLのメタデータ・ルビ、画像入りZIP
+- `ComicArchiveParserTest`：CBZのページ順・ComicInfo・表紙、数字を含む自然順
+- `KindleParserTest`：合成MOBI7の本文・メタデータ・画像、合成KF8の本文再構成
+- `LibraryModelTest`：フォルダ・タグ・JSON往復、同一書籍判定、並び替え
+- `ArchiveExtractorTest`：ZIP / 7z の一括展開、画像アーカイブ判定、ZIP Slip 拒否
 - `FormattingTest`：時間・文字数・連続読書日数
-- `EpubCollectionTest`：手元の EPUB コーパスを一括パース（環境変数があるときだけ実行）
+- `EpubCollectionTest` / `KindleCollectionTest` / `ComicCollectionTest`：手元のコーパスを一括パース（環境変数があるときだけ実行）
+- `LargeImportTest`：画像を多く含む大きな EPUB をディスクへ逐次展開する回帰テスト
 
 ```bash
 TATEYOMI_EPUB_DIR=~/epub-collection gradle testDebugUnitTest --tests '*EpubCollectionTest*'
+TATEYOMI_KINDLE_DIR=~/kindle-samples gradle testDebugUnitTest --tests '*KindleCollectionTest*'
+TATEYOMI_COMIC_DIR=~/comic-samples gradle testDebugUnitTest --tests '*ComicCollectionTest*'
+TATEYOMI_LARGE_EPUB=~/large-test.epub gradle testDebugUnitTest --tests '*LargeImportTest*'
 ```
 
 Project Gutenberg の日本語 EPUB 2/3、台湾の繁体字 EPUB、固定レイアウト画像
@@ -253,12 +299,25 @@ gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.cl
 で `SeedLibraryTest` を実行するとデータが残ります。詳細は
 `app/src/androidTest/assets/NOTICE.txt` を参照してください。
 
-## EPUB 対応と制限
+## 対応形式と制限
 
 - 本文は **テキスト優先** で抽出します。出版社 CSS は使わず、見出し・段落・
   ルビ・強調・画像だけを保持します。
 - ブロック画像は1枚につき1ページの全画面表示です。外字などのインライン画像は本文中に文字サイズで描画します。
 - SVG 内の `<image>` は画像として取り込みます。SVG のベクター図形やテキストはスキップします。DRM 付き EPUB は読めません。
+- XHTML は単体ファイル、または HTML と画像を含む ZIP を読み込めます。単体ファイルから
+  相対パスの画像は読み込めません。
+- CBZ / CBR / ZIP / RAR は画像だけのアーカイブとして読み込みます。ページ順は
+  ファイル名の数字を考慮して並べます。`ComicInfo.xml` がある場合はシリーズ名・
+  巻数・著者を使用します。
+- Kindle は DRM のない MOBI / PRC / AZW / AZW3 を読み込めます。AZW4（Print Replica）、
+  KFX、Topaz、DRM 保護されたファイルは読めません。HUFF-CDIC 圧縮と KF8 の
+  本文再構成に対応します。
+- 一括追加は ZIP / RAR / 7z に対応します。暗号化されたアーカイブは読めません。
+  展開後の合計サイズには上限があります。
+- 画像は取り込み時に順次ディスクへ書き出すため、大きな画像入りの本でも
+  画像全体をメモリに保持しません。本文が極端に大きい本（約1000万字超）は
+  読み込めません。
 - 表や複雑な段組は直列化されます。
 - 禁則処理は基本的な集合のみです。`<br>` や段落境界をまたぐ行頭句読点は
   完全には防げません。
@@ -286,3 +345,5 @@ gradle connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.cl
   パブリックドメイン作品で、UI 検証用です。リリース APK には含まれません。
   出典と注意は `NOTICE.txt` に記載しています。
 - スクリーンショットの本文は上記パブリックドメイン作品です。
+- RAR / RAR5 の展開に [unrar5j](https://github.com/RealBurst/unrar5j)（Apache-2.0）、
+  7z の展開に Apache Commons Compress（Apache-2.0）と XZ for Java を使用しています。
