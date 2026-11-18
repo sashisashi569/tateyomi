@@ -41,13 +41,18 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun handleIncomingIntent(intent: Intent?) {
-        val uris = shareUris(intent)
+        val uris = when (intent?.action) {
+            Intent.ACTION_VIEW -> listOfNotNull(intent.data)
+            Intent.ACTION_SEND, Intent.ACTION_SEND_MULTIPLE -> shareUris(intent)
+            else -> emptyList()
+        }
         if (uris.isEmpty()) return
         // The activity can be recreated with the original intent. Clear the
         // shared payload after handing it to the view model.
         intent?.action = null
         intent?.removeExtra(Intent.EXTRA_STREAM)
         intent?.clipData = null
+        intent?.data = null
         viewModel.importShared(uris)
     }
 

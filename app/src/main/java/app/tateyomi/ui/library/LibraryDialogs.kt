@@ -309,6 +309,88 @@ private fun MoveTargetRow(label: String, selected: Boolean, onClick: () -> Unit)
     }
 }
 
+/**
+ * Asks where incoming files should land: an existing folder, a folder created
+ * on the spot, or nowhere (unfiled). A non-blank folder-name field overrides
+ * the radio selection, mirroring the move dialogs.
+ */
+@Composable
+fun ImportDestinationDialog(
+    folders: List<LibraryFolder>,
+    count: Int,
+    defaultFolderId: String?,
+    onDismiss: () -> Unit,
+    onConfirm: (folderId: String?, newFolderName: String?) -> Unit,
+) {
+    var selected by remember(defaultFolderId) { mutableStateOf(defaultFolderId) }
+    var newFolderName by remember(defaultFolderId) { mutableStateOf("") }
+    val typedName = newFolderName.trim()
+    val duplicate = typedName.isNotEmpty() &&
+        folders.any { it.name.equals(typedName, ignoreCase = true) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("追加先のフォルダ", fontFamily = FontFamily.SansSerif) },
+        text = {
+            Column(Modifier.heightIn(max = 440.dp)) {
+                if (count > 1) {
+                    Text("ファイル${count}個を追加します。", fontSize = 13.sp)
+                    Spacer(Modifier.height(10.dp))
+                }
+                LazyColumn(Modifier.heightIn(max = 260.dp)) {
+                    item {
+                        MoveTargetRow(
+                            label = "フォルダなし",
+                            selected = typedName.isBlank() && selected == null,
+                            onClick = {
+                                selected = null
+                                newFolderName = ""
+                            },
+                        )
+                    }
+                    items(folders, key = { it.id }) { folder ->
+                        MoveTargetRow(
+                            label = folder.name,
+                            selected = typedName.isBlank() && selected == folder.id,
+                            onClick = {
+                                selected = folder.id
+                                newFolderName = ""
+                            },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                OutlinedTextField(
+                    value = newFolderName,
+                    onValueChange = { newFolderName = it.take(40) },
+                    label = { Text("新しいフォルダ名") },
+                    singleLine = true,
+                    isError = duplicate,
+                    supportingText = if (duplicate) {
+                        { Text("フォルダ名が重複しています", fontSize = 11.sp) }
+                    } else {
+                        null
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onConfirm(selected, typedName.ifBlank { null }) },
+                enabled = !duplicate,
+            ) {
+                Text("追加")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("キャンセル")
+            }
+        },
+    )
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun EditBookDialog(

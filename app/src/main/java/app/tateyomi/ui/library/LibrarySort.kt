@@ -5,6 +5,7 @@ import app.tateyomi.data.LibrarySort
 import java.text.Collator
 import java.util.Locale
 import kotlin.math.min
+import kotlin.random.Random
 
 val LibrarySort.label: String
     get() = when (this) {
@@ -15,9 +16,21 @@ val LibrarySort.label: String
         LibrarySort.TITLE_DESC -> "書名の逆順"
         LibrarySort.AUTHOR -> "著者順"
         LibrarySort.AUTHOR_DESC -> "著者の逆順"
+        LibrarySort.RANDOM -> "ランダム"
     }
 
-internal fun sortLibraryBooks(books: List<BookSummary>, sort: LibrarySort): List<BookSummary> {
+/**
+ * Orders books for one library scope. [randomSeed] keeps [LibrarySort.RANDOM]
+ * stable while the process lives; it is reseeded per launch so the order
+ * changes between sessions. [readBooksLast] sinks finished books to the end
+ * while keeping the underlying order within both groups.
+ */
+internal fun sortLibraryBooks(
+    books: List<BookSummary>,
+    sort: LibrarySort,
+    readBooksLast: Boolean = false,
+    randomSeed: Long = 0L,
+): List<BookSummary> {
     val collator = Collator.getInstance(Locale.JAPANESE)
     fun byTitle(a: BookSummary, b: BookSummary): Int =
         naturalCompare(a.title, b.title, collator)
@@ -30,7 +43,7 @@ internal fun sortLibraryBooks(books: List<BookSummary>, sort: LibrarySort): List
         return if (byName != 0) byName else byTitle(a, b)
     }
 
-    return when (sort) {
+    val ordered = when (sort) {
         LibrarySort.RECENT -> books.sortedWith(
             compareByDescending<BookSummary> { it.lastOpenedAt ?: it.addedAt }
                 .thenComparator(::byTitle),
@@ -64,7 +77,12 @@ internal fun sortLibraryBooks(books: List<BookSummary>, sort: LibrarySort): List
                 }
             },
         )
+        LibrarySort.RANDOM -> books.shuffled(Random(randomSeed))
     }
+    if (!readBooksLast) return ordered
+    val unfinished = ordered.filter { it.percent < 100 }
+    val finished = ordered.filter { it.percent >= 100 }
+    return unfinished + finished
 }
 
 /**

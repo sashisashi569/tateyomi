@@ -155,6 +155,18 @@ data class ImportOptions(
     val archiveFolderMode: ArchiveFolderMode = ArchiveFolderMode.ASK,
 )
 
+/**
+ * Sort order for one library scope. [AppSettings.folderSorts] keys these by
+ * folder id; the unfiled pseudo folder has its own entry. Folders without an
+ * entry fall back to the global defaults on [AppSettings].
+ */
+@Serializable
+data class FolderSortPrefs(
+    val sort: LibrarySort = LibrarySort.RECENT,
+    /** Finished books sink to the end regardless of [sort]. */
+    val readBooksLast: Boolean = false,
+)
+
 @Serializable
 data class AppSettings(
     val reader: ReaderSettings = ReaderSettings.Default,
@@ -162,7 +174,12 @@ data class AppSettings(
     val fonts: List<ManagedFont> = emptyList(),
     val appearance: AppearanceSettings = AppearanceSettings(),
     val importOptions: ImportOptions = ImportOptions(),
+    /** Sort order for the whole library; also the default for folders without saved prefs. */
     val librarySort: LibrarySort = LibrarySort.RECENT,
+    /** Whether finished books sink to the end while the whole library is shown. */
+    val librarySortReadLast: Boolean = false,
+    /** Saved sort prefs per folder id, keyed like [AppSettings.librarySort] plus the unfiled id. */
+    val folderSorts: Map<String, FolderSortPrefs> = emptyMap(),
 )
 
 data class BuiltInPreset(

@@ -892,6 +892,10 @@ class AppRepository(private val context: Context) {
                 if (book.folderId == id) book.copy(folderId = null) else book
             })
         }
+        if (_settings.value.folderSorts.containsKey(id)) {
+            _settings.update { it.copy(folderSorts = it.folderSorts - id) }
+            persistSettings()
+        }
         persistLibrary()
     }
 
@@ -1031,10 +1035,34 @@ class AppRepository(private val context: Context) {
         scope.launch { persistSettings() }
     }
 
-    fun updateLibrarySort(sort: LibrarySort) {
-        if (_settings.value.librarySort == sort) return
-        _settings.update { it.copy(librarySort = sort) }
+    /**
+     * Saves the sort prefs for one library scope. [folderId] null updates the
+     * whole-library defaults; otherwise it targets that folder's saved prefs
+     * (the unfiled pseudo folder uses its own id as the key).
+     */
+    fun updateSortPrefs(folderId: String?, sort: LibrarySort, readBooksLast: Boolean) {
+        val current = _settings.value
+        if (folderId == null) {
+            if (current.librarySort == sort && current.librarySortReadLast == readBooksLast) return
+            _settings.value = current.copy(
+                librarySort = sort,
+                librarySortReadLast = readBooksLast,
+            )
+        } else {
+            val prefs = FolderSortPrefs(sort = sort, readBooksLast = readBooksLast)
+            if (current.folderSorts[folderId] == prefs) return
+            _settings.value = current.copy(
+                folderSorts = current.folderSorts + (folderId to prefs),
+            )
+        }
         scope.launch { persistSettings() }
+    }
+
+    /** Returns the saved prefs for a scope, falling back to the whole-library defaults. */
+    fun sortPrefsFor(folderId: String?): FolderSortPrefs {
+        val current = _settings.value
+        val defaults = FolderSortPrefs(current.librarySort, current.librarySortReadLast)
+        return if (folderId == null) defaults else current.folderSorts[folderId] ?: defaults
     }
 
     fun savePreset(name: String, reader: ReaderSettings) {

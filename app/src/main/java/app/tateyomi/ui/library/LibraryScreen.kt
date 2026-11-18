@@ -52,11 +52,13 @@ import androidx.compose.material.icons.outlined.Sell
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +89,7 @@ import androidx.compose.ui.unit.sp
 import app.tateyomi.data.BookSummary
 import app.tateyomi.data.LibraryFolder
 import app.tateyomi.data.LibrarySort
+import app.tateyomi.ui.ImportDestinationRequest
 import app.tateyomi.ui.ImportUiState
 import app.tateyomi.ui.LibraryFilter
 import app.tateyomi.ui.UNFILED_FOLDER_ID
@@ -102,8 +105,11 @@ fun LibraryScreen(
     filter: LibraryFilter,
     ready: Boolean,
     importState: ImportUiState?,
+    importDestination: ImportDestinationRequest?,
     coverFile: (BookSummary) -> File?,
     onImport: (List<Uri>) -> Unit,
+    onConfirmImportDestination: (String?, String?) -> Unit,
+    onCancelImportDestination: () -> Unit,
     onOpenBook: (String) -> Unit,
     onOpenStats: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -169,30 +175,11 @@ fun LibraryScreen(
         }
     }
 
-    val folderScoped = remember(books, folderFilter) {
-        when (folderFilter) {
-            null -> books
-            UNFILED_FOLDER_ID -> books.filter { it.folderId == null }
-            else -> books.filter { it.folderId == folderFilter }
-        }
-    }
+    val folderScoped = remember(books, folderFilter) { folderScopedBooks(books, folderFilter) }
     val allTags = remember(folderScoped) {
         folderScoped.flatMap { it.tags }.distinct().sorted()
     }
-    val sortedFolderBooks = remember(folderScoped, filter.sort) {
-        sortLibraryBooks(folderScoped, filter.sort)
-    }
-    val visibleBooks = remember(sortedFolderBooks, selectedTags, query) {
-        val search = query.trim()
-        sortedFolderBooks.filter { book ->
-            val tagsMatch = selectedTags.isEmpty() || selectedTags.all { it in book.tags }
-            val queryMatch = search.isBlank() ||
-                book.title.contains(search, ignoreCase = true) ||
-                book.author.contains(search, ignoreCase = true) ||
-                book.tags.any { it.contains(search, ignoreCase = true) }
-            tagsMatch && queryMatch
-        }
-    }
+    val visibleBooks = remember(folderScoped, filter) { visibleLibraryBooks(folderScoped, filter) }
     LaunchedEffect(folderFilter, allTags) {
         if (selectedTags.isNotEmpty()) {
             val kept = selectedTags.intersect(allTags.toSet())
@@ -406,7 +393,11 @@ fun LibraryScreen(
                             Spacer(Modifier.width(4.dp))
                             SortMenuButton(
                                 current = filter.sort,
+                                readBooksLast = filter.readBooksLast,
                                 onSelect = { onFilterChange(filter.copy(sort = it)) },
+                                onToggleReadBooksLast = {
+                                    onFilterChange(filter.copy(readBooksLast = !filter.readBooksLast))
+                                },
                             )
                             TextButton(
                                 onClick = {
@@ -630,6 +621,19 @@ fun LibraryScreen(
             onDelete = onDeleteFolder,
         )
     }
+
+    // Wait for the library so the folder list in the dialog is complete.
+    if (ready) {
+        importDestination?.let { request ->
+            ImportDestinationDialog(
+                folders = folders,
+                count = request.uris.size,
+                defaultFolderId = folderFilter?.takeIf { it != UNFILED_FOLDER_ID },
+                onDismiss = onCancelImportDestination,
+                onConfirm = onConfirmImportDestination,
+            )
+        }
+    }
 }
 
 private fun exportFileName(book: BookSummary): String {
@@ -676,7 +680,9 @@ private fun SearchField(
 @Composable
 private fun SortMenuButton(
     current: LibrarySort,
+    readBooksLast: Boolean,
     onSelect: (LibrarySort) -> Unit,
+    onToggleReadBooksLast: () -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
     Box {
@@ -713,6 +719,20 @@ private fun SortMenuButton(
                     },
                 )
             }
+            HorizontalDivider(
+                Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            DropdownMenuItem(
+                text = { Text("読了の本を最後に") },
+                onClick = { onToggleReadBooksLast() },
+                leadingIcon = {
+                    Checkbox(
+                        checked = readBooksLast,
+                        onCheckedChange = null,
+                    )
+                },
+            )
         }
     }
 }

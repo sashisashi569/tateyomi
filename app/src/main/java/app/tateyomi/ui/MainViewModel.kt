@@ -22,6 +22,9 @@ import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
 import app.tateyomi.data.ReadingProgress
 import app.tateyomi.data.ReadingStats
+import app.tateyomi.ui.library.folderScopedBooks
+import app.tateyomi.ui.library.sortLibraryBooks
+import app.tateyomi.ui.library.visibleLibraryBooks
 import java.io.File
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -72,6 +75,15 @@ data class LibraryFilter(
     val folderId: String? = null,
     val tags: Set<String> = emptySet(),
     val sort: LibrarySort = LibrarySort.RECENT,
+    /** Finished books sink to the end while this scope is shown. */
+    val readBooksLast: Boolean = false,
+    /** Seed for [LibrarySort.RANDOM], fixed for the life of this view model. */
+    val randomSeed: Long = 0L,
+)
+
+/** Files waiting for the user to pick their import destination. */
+data class ImportDestinationRequest(
+    val uris: List<Uri>,
 )
 
 data class ImportBookConflict(
@@ -118,6 +130,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val importArchiveFolderChoice: StateFlow<ImportArchiveFolderChoice?> =
         _importArchiveFolderChoice.asStateFlow()
 
+    private val _importDestination = MutableStateFlow<ImportDestinationRequest?>(null)
+    val importDestination: StateFlow<ImportDestinationRequest?> = _importDestination.asStateFlow()
+
+    private val _readerBookOrder = MutableStateFlow<List<String>>(emptyList())
+    val readerBookOrder: StateFlow<List<String>> = _readerBookOrder.asStateFlow()
+
     private val _readerState = MutableStateFlow<ReaderUiState?>(null)
     val readerState: StateFlow<ReaderUiState?> = _readerState.asStateFlow()
 
@@ -149,10 +167,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private val importQueue = Channel<ImportRequest>(Channel.UNLIMITED)
 
+    /** Reshuffles [LibrarySort.RANDOM] once per process instead of per composition. */
+    private val randomSeed = System.nanoTime()
+
     init {
         viewModelScope.launch {
             repository.ready.first { it }
-            _libraryFilter.update { it.copy(sort = repository.settings.value.librarySort) }
+            val defaults = repository.sortPrefsFor(null)
+            _libraryFilter.update {
+                it.copy(
+                    sort = defaults.sort,
+                    readBooksLast = defaults.readBooksLast,
+                    randomSeed = randomSeed,
+                )
+            }
             while (isActive) {
                 val batch = ArrayList<ImportRequest>()
                 batch += importQueue.receive()
@@ -164,9 +192,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun openBook(id: String) {
+    fun openBook(id: String, keepOrder: Boolean = false) {
         if (_screen.value is Screen.Reader && (_readerState.value as? ReaderUiState.Ready)?.book?.summary?.id == id) {
             return
+        }
+        if (!keepOrder) {
+            _readerBookOrder.value = readerOrderFor(id)
         }
         _screen.value = Screen.Reader(id)
         _readerState.value = ReaderUiState.Loading
@@ -225,12 +256,46 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /**
+     * Applies filter changes. Switching folders adopts that scope's saved sort
+     * prefs; changing sort or the read-last option while the scope stays the
+     * same saves the prefs back to that scope.
+     */
     fun updateLibraryFilter(filter: LibraryFilter) {
         val previous = _libraryFilter.value
-        _libraryFilter.value = filter
-        if (filter.sort != previous.sort) {
-            repository.updateLibrarySort(filter.sort)
+        if (filter.folderId != previous.folderId) {
+            val prefs = repository.sortPrefsFor(filter.folderId)
+            _libraryFilter.value = filter.copy(
+                sort = prefs.sort,
+                readBooksLast = prefs.readBooksLast,
+            )
+            return
         }
+        _libraryFilter.value = filter
+        if (filter.sort != previous.sort || filter.readBooksLast != previous.readBooksLast) {
+            repository.updateSortPrefs(filter.folderId, filter.sort, filter.readBooksLast)
+        }
+    }
+
+    /**
+     * Book ids in the exact order the reader should page through, frozen at
+     * open time so reading on (or finishing) other books cannot reshuffle it.
+     */
+    private fun readerOrderFor(bookId: String): List<String> {
+        val books = repository.library.value
+        val filter = _libraryFilter.value
+        val scoped = folderScopedBooks(books, filter.folderId)
+        val visible = visibleLibraryBooks(scoped, filter)
+        if (visible.any { it.id == bookId }) return visible.map { it.id }
+        // Opened from outside the current view; fall back to the book's own folder.
+        val book = books.firstOrNull { it.id == bookId }
+        val fallback = folderScopedBooks(books, book?.folderId)
+        return sortLibraryBooks(
+            books = fallback,
+            sort = filter.sort,
+            readBooksLast = filter.readBooksLast,
+            randomSeed = filter.randomSeed,
+        ).map { it.id }
     }
 
     fun updateImportOptions(options: ImportOptions) {
@@ -366,26 +431,59 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Entry point for the in-app file picker. Asks for the destination first. */
     fun importBooks(uris: List<Uri>) {
-        importIntoFolder(uris, currentImportFolder())
+        if (uris.isEmpty()) return
+        _importDestination.value = ImportDestinationRequest(uris)
     }
 
-    /** Entry point for ACTION_SEND / ACTION_SEND_MULTIPLE from other apps. */
+    /** Entry point for ACTION_SEND / ACTION_SEND_MULTIPLE / ACTION_VIEW from other apps. */
     fun importShared(uris: List<Uri>) {
         if (uris.isEmpty()) return
-        val targetFolder = currentImportFolder()
         if (_screen.value is Screen.Reader) {
             closeBook()
         } else if (_screen.value !is Screen.Library) {
             _screen.value = Screen.Library
         }
-        val sort = _libraryFilter.value.sort
-        _libraryFilter.value = LibraryFilter(sort = sort)
-        importIntoFolder(uris, targetFolder)
+        val defaults = repository.sortPrefsFor(null)
+        _libraryFilter.update {
+            it.copy(
+                query = "",
+                folderId = null,
+                tags = emptySet(),
+                sort = defaults.sort,
+                readBooksLast = defaults.readBooksLast,
+            )
+        }
+        _importDestination.value = ImportDestinationRequest(uris)
     }
 
-    private fun currentImportFolder(): String? =
-        _libraryFilter.value.folderId?.takeIf { it != UNFILED_FOLDER_ID }
+    /**
+     * Starts the pending import. A non-null [newFolderName] creates that
+     * folder first; otherwise [folderId] is used as-is (null means unfiled).
+     */
+    fun confirmImportDestination(folderId: String?, newFolderName: String?) {
+        val request = _importDestination.value ?: return
+        _importDestination.value = null
+        if (newFolderName != null) {
+            viewModelScope.launch {
+                try {
+                    val folder = withContext(Dispatchers.IO) {
+                        repository.createFolder(newFolderName)
+                    }
+                    importIntoFolder(request.uris, folder.id)
+                } catch (e: Exception) {
+                    _messages.tryEmit(e.message ?: "フォルダを作成できませんでした")
+                }
+            }
+        } else {
+            importIntoFolder(request.uris, folderId)
+        }
+    }
+
+    fun cancelImportDestination() {
+        _importDestination.value = null
+    }
 
     private fun importIntoFolder(uris: List<Uri>, folderId: String?) {
         uris.forEach { uri -> importQueue.trySend(ImportRequest(uri, folderId)) }

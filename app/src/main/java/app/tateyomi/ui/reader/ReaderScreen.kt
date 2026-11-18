@@ -34,6 +34,8 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.NavigateBefore
+import androidx.compose.material.icons.automirrored.filled.NavigateNext
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.Toc
 import androidx.compose.material.icons.outlined.ErrorOutline
@@ -51,6 +53,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,11 +72,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.view.WindowCompat
@@ -81,6 +86,7 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.tateyomi.data.AppSettings
+import app.tateyomi.data.BookSummary
 import app.tateyomi.data.ManagedFont
 import app.tateyomi.data.ReaderPreset
 import app.tateyomi.data.ReaderSettings
@@ -158,6 +164,18 @@ private fun ReaderPager(
     chromePalette: ReaderPalette,
 ) {
     val location = viewModel.location.collectAsStateWithLifecycle().value ?: ReadingProgress()
+    val library by viewModel.library.collectAsStateWithLifecycle()
+    val bookOrder by viewModel.readerBookOrder.collectAsStateWithLifecycle()
+    val (previousBook, nextBook) = remember(book.summary.id, library, bookOrder) {
+        val byId = library.associateBy { it.id }
+        val ordered = bookOrder.mapNotNull { byId[it] }
+        val index = ordered.indexOfFirst { it.id == book.summary.id }
+        if (index < 0) {
+            null to null
+        } else {
+            ordered.getOrNull(index - 1) to ordered.getOrNull(index + 1)
+        }
+    }
     var layoutState by remember(book.summary.id) { mutableStateOf<ReaderLayout?>(null) }
 
     LaunchedEffect(book.summary.id, settings) {
@@ -401,6 +419,9 @@ private fun ReaderPager(
         } else {
             "${safeVisiblePage + 1}"
         }
+        // The footer mirrors with the reading direction so the progress bar
+        // advances the same way the pages do (right-to-left while vertical).
+        val footerDirection = if (settings.vertical) LayoutDirection.Rtl else LayoutDirection.Ltr
         AnimatedVisibility(
             visible = bottomBarVisible,
             modifier = Modifier
@@ -409,32 +430,37 @@ private fun ReaderPager(
             enter = fadeIn(tween(160)) + slideInVertically(tween(220)) { height -> height / 2 },
             exit = fadeOut(tween(200)) + slideOutVertically(tween(220)) { height -> height },
         ) {
-            ReaderBottomBar(
-                sliderIndex = sliderIndex,
-                sliderCount = sliderCount,
-                pageLabel = pageLabel,
-                totalPages = visiblePageCount,
-                atEnd = visibleEndPage >= totalPages - 1,
-                palette = chromePalette,
-                onUserInteraction = { bottomBarInteraction++ },
-                onSeek = { target ->
-                    pagerStateRef?.let { pagerState ->
-                        scope.launch {
-                            pagerState.scrollToPage(target.coerceIn(0, (sliderCount - 1).coerceAtLeast(0)))
+            CompositionLocalProvider(LocalLayoutDirection provides footerDirection) {
+                ReaderBottomBar(
+                    sliderIndex = sliderIndex,
+                    sliderCount = sliderCount,
+                    pageLabel = pageLabel,
+                    totalPages = visiblePageCount,
+                    atEnd = visibleEndPage >= totalPages - 1,
+                    previousBook = previousBook,
+                    nextBook = nextBook,
+                    palette = chromePalette,
+                    onUserInteraction = { bottomBarInteraction++ },
+                    onOpenBook = { id -> viewModel.openBook(id, keepOrder = true) },
+                    onSeek = { target ->
+                        pagerStateRef?.let { pagerState ->
+                            scope.launch {
+                                pagerState.scrollToPage(target.coerceIn(0, (sliderCount - 1).coerceAtLeast(0)))
+                            }
                         }
-                    }
-                },
-                onOpenToc = {
-                    if (layout != null) {
-                        showSettings = false
-                        showToc = true
-                    }
-                },
-                onOpenSettings = {
-                    showToc = false
-                    showSettings = true
-                },
-            )
+                    },
+                    onOpenToc = {
+                        if (layout != null) {
+                            showSettings = false
+                            showToc = true
+                        }
+                    },
+                    onOpenSettings = {
+                        showToc = false
+                        showSettings = true
+                    },
+                )
+            }
         }
     }
 
@@ -547,8 +573,11 @@ private fun ReaderBottomBar(
     pageLabel: String,
     totalPages: Int,
     atEnd: Boolean,
+    previousBook: BookSummary?,
+    nextBook: BookSummary?,
     palette: ReaderPalette,
     onUserInteraction: () -> Unit,
+    onOpenBook: (String) -> Unit,
     onSeek: (Int) -> Unit,
     onOpenToc: () -> Unit,
     onOpenSettings: () -> Unit,
@@ -644,6 +673,36 @@ private fun ReaderBottomBar(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         )
                     }
+                }
+                IconButton(
+                    onClick = { previousBook?.let { onOpenBook(it.id) } },
+                    enabled = previousBook != null,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.NavigateBefore,
+                        contentDescription = if (previousBook != null) {
+                            "前の本『${previousBook.title}』を開く"
+                        } else {
+                            "前の本を開く"
+                        },
+                        // Explicit tints keep the reader chrome palette; the
+                        // 0.38 alpha matches M3's disabled icon contrast.
+                        tint = if (previousBook != null) palette.text else palette.text.copy(alpha = 0.38f),
+                    )
+                }
+                IconButton(
+                    onClick = { nextBook?.let { onOpenBook(it.id) } },
+                    enabled = nextBook != null,
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.NavigateNext,
+                        contentDescription = if (nextBook != null) {
+                            "次の本『${nextBook.title}』を開く"
+                        } else {
+                            "次の本を開く"
+                        },
+                        tint = if (nextBook != null) palette.text else palette.text.copy(alpha = 0.38f),
+                    )
                 }
             }
         }

@@ -52,6 +52,7 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
     val importBookConflict by viewModel.importBookConflict.collectAsStateWithLifecycle()
     val importFolderConflict by viewModel.importFolderConflict.collectAsStateWithLifecycle()
     val importArchiveFolderChoice by viewModel.importArchiveFolderChoice.collectAsStateWithLifecycle()
+    val importDestination by viewModel.importDestination.collectAsStateWithLifecycle()
 
     val snackbar = remember { SnackbarHostState() }
     LaunchedEffect(viewModel) {
@@ -108,8 +109,11 @@ fun TateyomiAppRoot(viewModel: MainViewModel = viewModel()) {
                         filter = libraryFilter,
                         ready = ready,
                         importState = importState,
+                        importDestination = importDestination,
                         coverFile = viewModel::coverFile,
                         onImport = viewModel::importBooks,
+                        onConfirmImportDestination = viewModel::confirmImportDestination,
+                        onCancelImportDestination = viewModel::cancelImportDestination,
                         onOpenBook = viewModel::openBook,
                         onOpenStats = viewModel::openStats,
                         onOpenSettings = viewModel::openSettings,
