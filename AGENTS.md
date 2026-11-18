@@ -18,8 +18,28 @@ nix develop -c adb install -r app/build/outputs/apk/debug/app-debug.apk
 
 - Android SDK / adb は devshell の `$ANDROID_HOME` を使う。`/nix/store/...` の
   SDK パスをハードコードしない。build-tools は 35.0.0。
-- devshell に emulator / system image は含まれない。検証は起動済みの adb 端末で行う
-  （実機はワイヤレスデバッグ。複数端末時は `adb -s <serial>`）。
+- **動作確認の分担**: 実機（ワイヤレスデバッグ）はユーザーが手動で確認する。
+  エージェントは実機を操作して確認しない。確認が必要なときは毎回エミュレータを
+  使う。実機とエミュレータが同時に接続しているときは `adb -s <serial>` で
+  対象を明示し、実機に向けて操作しない。
+- エミュレータと system image は devshell に含まれる（`flake.nix` の
+  `composeAndroidPackages`、android-35 default x86_64）。AVD は
+  `ANDROID_AVD_HOME`（既定は `~/.config/.android/avd`）に永続化する。
+
+  ```bash
+  # 初回のみAVD作成
+  nix develop -c bash -c 'echo no | avdmanager create avd -n tateyomi \
+    -k "system-images;android-35;default;x86_64" -d pixel_6'
+  # ヘッドレス起動（バックグラウンドで実行）
+  nix develop -c emulator -avd tateyomi -no-window -no-audio -no-boot-anim \
+    -gpu swiftshader_indirect -no-snapshot
+  # sys.boot_completed が 1 になってから検証する
+  nix develop -c adb -s emulator-5554 shell getprop sys.boot_completed
+  nix develop -c adb -s emulator-5554 emu kill   # 終了
+  ```
+
+  画面の確認は `adb shell uiautomator dump` のXMLと `logcat -b crash` で
+  行う（座標は `input tap` で操作できる）。
 - JVM テストは Android フレームワーク非依存。`ReaderLayout` / `EpubParser` は
   Robolectric なしでテストできる。
 - EPUB コーパスはリポジトリに含めない。
